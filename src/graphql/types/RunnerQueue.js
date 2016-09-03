@@ -7,6 +7,10 @@ export default {
       description: 'When the run was created',
       type: 'FactoryDateTime'
     },
+    updated: {
+      description: 'Last time the queue item was updated',
+      type: 'FactoryDateTime'
+    },
     runner: {
       description: 'Runner the run is currently assigned to',
       type: 'String'

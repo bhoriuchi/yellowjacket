@@ -16,7 +16,7 @@ export default function startListeners () {
   this._io.on('connection', (socket) => {
     socket.emit('connected')
     socket.on('status', () => socket.emit('status', currentStatus()))
-    socket.on('schedule', (action, args) => this._scheduler(action, args))
+    socket.on('schedule', (action, context) => this.schedule(socket, action, context))
     socket.on('run', () => console.log('check run queue'))
   })
 }

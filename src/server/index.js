@@ -7,6 +7,7 @@ import startListeners from './startListeners'
 import getSelf from './getSelf'
 import getSettings from './getSettings'
 import checkin from './checkin'
+import schedule from './schedule'
 import { LOG_LEVELS } from './common'
 import { OFFLINE, MAINTENANCE, ONLINE, getLogConfig } from './common'
 
@@ -77,6 +78,7 @@ function Server (lib, helper, actions, scheduler) {
 Server.prototype.checkin = checkin
 Server.prototype.getSelf = getSelf
 Server.prototype.getSettings = getSettings
+Server.prototype.schedule = schedule
 Server.prototype.startListeners = startListeners
 
 // logging prototypes
