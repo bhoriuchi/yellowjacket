@@ -4,6 +4,7 @@ import RunnerNodeStateEnum from './RunnerNodeStateEnum'
 import RunnerQuery from './RunnerQuery'
 import RunnerQueue from './RunnerQueue'
 import RunnerQueueStateEnum from './RunnerQueueStateEnum'
+import RunnerSettings from './RunnerSettings'
 import RunnerZone from './RunnerZone'
 
 export { RunnerMutation }
@@ -12,6 +13,7 @@ export { RunnerNodeStateEnum }
 export { RunnerQuery }
 export { RunnerQueue }
 export { RunnerQueueStateEnum }
+export { RunnerSettings }
 export { RunnerZone }
 
 export default {
@@ -21,5 +23,6 @@ export default {
   RunnerQuery,
   RunnerQueue,
   RunnerQueueStateEnum,
+  RunnerSettings,
   RunnerZone
 }

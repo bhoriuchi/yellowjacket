@@ -7,6 +7,10 @@ export const DEFAULT_TABLES = {
     table: 'runner_queue',
     unique: []
   },
+  RunnerSettings: {
+    table: 'runner_settings',
+    unique: []
+  },
   RunnerZone: {
     table: 'runner_zone',
     unique: []

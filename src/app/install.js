@@ -1,7 +1,15 @@
 import chalk from 'chalk'
 
 export default function (backend) {
-  return backend.install().then(function (res) {
+  return backend.install({
+    RunnerSettings: [
+      {
+        appName: 'YELLOWJACKET',
+        checkinFrequency: 30,
+        offlineAfterPolls: 1
+      }
+    ]
+  }).then(function (res) {
     console.log(chalk.blue('Install Summary'))
     console.log(chalk.blue(JSON.stringify(res, null, '  ')))
     process.exit()

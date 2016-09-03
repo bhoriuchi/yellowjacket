@@ -59,6 +59,32 @@ export default {
       },
       resolve: 'deleteRunner'
     },
+    createSettings: {
+      type: 'RunnerSettings',
+      args: {
+        appName: { type: 'String', defaultValue: 'YELLOWJACKET' },
+        checkinFrequency: { type: 'Int', defaultValue: 30 },
+        offlineAfterPolls: { type: 'Int', defaultValue: 1 }
+      },
+      resolve: 'createSettings'
+    },
+    readSettings: {
+      type: 'RunnerSettings',
+      resolve: 'readSettings'
+    },
+    updateSettings: {
+      type: 'RunnerSettings',
+      args: {
+        appName: { type: 'String' },
+        checkinFrequency: { type: 'Int' },
+        offlineAfterPolls: { type: 'Int' }
+      },
+      resolve: 'updateSettings'
+    },
+    deleteSettings: {
+      type: 'Boolean',
+      resolve: 'deleteSettings'
+    },
     createZone: {
       type: 'RunnerZone',
       args: {

@@ -5,6 +5,7 @@ import _ from 'lodash'
 import { createTable, DEFAULT_TABLES, now } from './common'
 import { createQueue, readQueue, updateQueue, deleteQueue } from './queue'
 import { createRunner, readRunner, updateRunner, deleteRunner, checkinRunner } from './runner'
+import { createSettings, readSettings, updateSettings, deleteSettings } from './settings'
 import { createZone, readZone, updateZone, deleteZone } from './zone'
 
 function RethinkDBBackend (r, graphql, opts = {}, connection) {
@@ -40,6 +41,12 @@ function RethinkDBBackend (r, graphql, opts = {}, connection) {
     deleteRunner: deleteRunner(this),
     checkinRunner: checkinRunner(this),
 
+    // settings
+    createSettings: createSettings(this),
+    readSettings: readSettings(this),
+    updateSettings: updateSettings(this),
+    deleteSettings: deleteSettings(this),
+
     // zone
     createZone: createZone(this),
     readZone: readZone(this),
@@ -64,6 +71,10 @@ RethinkDBBackend.prototype.initStore = function (type, rebuild, seedData) {
     .forEach((name) => rebuild ? dbc.tableDrop(name) : dbc.table(tableName).delete())
     .run(this._connection)
     .then(() => createTable(dbc, tableName))
+    .then((tablesCreated) => {
+      if (seedData) return dbc.table(tableName).insert(seedData).run(this._connection).then(() => tablesCreated)
+      return tablesCreated
+    })
 }
 
 RethinkDBBackend.prototype.initAllStores = function (rebuild, seedData) {
@@ -80,8 +91,8 @@ RethinkDBBackend.prototype.initAllStores = function (rebuild, seedData) {
   return Promise.all(ops)
 }
 
-RethinkDBBackend.prototype.install = function () {
-  return this.initAllStores(true)
+RethinkDBBackend.prototype.install = function (seedData) {
+  return this.initAllStores(true, seedData)
 }
 
 export default RethinkDBBackend

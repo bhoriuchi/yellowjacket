@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import StateEnum from '../../graphql/types/RunnerNodeStateEnum'
-let { OFFLINE } = StateEnum.values
+let { OFFLINE, MAINTENANCE } = StateEnum.values
 
 export function createRunner (backend) {
   let r = backend._r
@@ -113,6 +113,7 @@ export function checkinRunner (backend) {
             return table.filter((node) => {
               return node('id')
                 .ne(args.id)
+                .and(node('state').ne(MAINTENANCE))
                 .and(
                   node('checkin')
                     .eq(null)

@@ -18,6 +18,10 @@ export default {
       },
       resolve: 'readRunner'
     },
+    readSettings: {
+      type: 'RunnerSettings',
+      resolve: 'readSettings'
+    },
     readZone: {
       type: ['RunnerZone'],
       args: {

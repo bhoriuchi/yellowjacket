@@ -7,7 +7,8 @@ export default function getSelf () {
     port: ${this._port}
   )
   {
-    id
+    id,
+    state
   }
 }`)
     .then((result) => {
