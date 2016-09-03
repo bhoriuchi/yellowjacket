@@ -19,8 +19,12 @@ export default {
       description: 'Count of how many times the task has been forwarded',
       type: 'Int'
     },
-    metadata: {
-      description: 'Generic supporting data',
+    action: {
+      description: 'Action name to execute when task is run',
+      type: 'String'
+    },
+    context: {
+      description: 'Action context',
       type: 'FactoryJSON'
     }
   }

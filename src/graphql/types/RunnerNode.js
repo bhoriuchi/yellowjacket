@@ -20,6 +20,10 @@ export default {
       description: 'Current state of the runner',
       type: 'RunnerNodeStateEnum'
     },
+    checkin: {
+      description: 'A timestamp of when the last time a node checked in was',
+      type: 'FactoryDateTime'
+    },
     metadata: {
       description: 'Generic supporting data',
       type: 'FactoryJSON'

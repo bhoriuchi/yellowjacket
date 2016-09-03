@@ -1,24 +1,17 @@
+import _ from 'lodash'
 import http from 'http'
 import events from 'events'
 import SocketServer from 'socket.io'
 import bunyan from 'bunyan'
 import startListeners from './startListeners'
-
-import {
-  OFFLINE,
-  ONLINE,
-  getLogConfig
-} from './common'
-
-function handler (req, res) {
-  res.writeHead(200)
-  res.end(ONLINE)
-}
+import getSelf from './getSelf'
+import checkin from './checkin'
+import { OFFLINE, getLogConfig } from './common'
 
 // server object constructor
 function Server (lib, helper, actions, scheduler) {
   let { error, pretty, options } = helper
-  let { cmd, host, port, role, id, loglevel, logfile } = options
+  let { cmd, host, port, loglevel, logfile, checkin } = options
 
   // check that the actions and scheduler are functions
   if (!_.isFunction(actions) || !_.isFunction(scheduler)) throw new Error('Invalid actions or scheduler')
@@ -38,19 +31,36 @@ function Server (lib, helper, actions, scheduler) {
   this._state = OFFLINE
   this._host = host
   this._port = Number(port)
+  this._checkinFrequency = Math.abs(Math.round(Number(checkin || 30)))
+  this._offlinePollsMissed = 2
+  this._offlineAfter = this._checkinFrequency * this._offlinePollsMissed
 
   // set up socket.io server
-  this._app = http.createServer(handler)
+  this._app = http.createServer((req, res) => {
+    res.writeHead(200)
+    res.end(`${this._host}:${this._port}`)
+  })
   this._app.listen(port)
   this._io = new SocketServer(this._app)
 
   // set up event emitter for local communication
   this._event = new events.EventEmitter()
 
-  this.logInfo(`* Starting [YELLOWJACKET] server on ${host}:${port}`)
-  this.startListeners()
+  this.logInfo(`Starting [YELLOWJACKET] server on ${host}:${port}`)
+  this.getSelf()
+    .then((self) => {
+      this._id = self.id
+      this._state = 'ONLINE'
+      return this.checkin().then(() => this.startListeners())
+    })
+    .catch((err) => {
+      this.logFatal(err)
+      process.exit()
+    })
 }
 
+Server.prototype.getSelf = getSelf
+Server.prototype.checkin = checkin
 Server.prototype.startListeners = startListeners
 
 // logging prototypes

@@ -1,8 +1,7 @@
 let { ONLINE } = './common'
 
 export default function startListeners () {
-  this.logInfo('* Socket server is now listening')
-  this._state = ONLINE
+  this.logInfo(`Socket server is now listening on ${this._host}:${this._port}`)
 
   let currentStatus = () => {
     return {

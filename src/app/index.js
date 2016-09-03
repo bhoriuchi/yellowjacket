@@ -17,6 +17,13 @@ export default function (backend, options, actions, scheduler) {
   let error = makeError(getopt)
   if (!backend) error('A backend is required but was not supplied')
   let opts = options ? options : getopt.parseSystem().options
+
+  // validate the port
+  opts.port = opts.port || 8080
+  if (isNaN(opts.port)) error('The port specified is not valid. A port must be between 1 - 65535')
+  opts.port = Math.round(Number(opts.port))
+  if (opts.port < 1 || opts.port > 65535) error('The port specified is not valid. A port must be between 1 - 65535')
+
   let lib = gql(backend)
   let helper = { options: opts, error, pretty}
   let { add, remove, update, start, cmd } = opts

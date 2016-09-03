@@ -6,7 +6,8 @@ export default {
         runner: { type: 'Int' },
         state: { type: 'RunnerQueueStateEnum', defaultValue: 'UNSCHEDULED' },
         forwarded: { type: 'Int', defaultValue: 0 },
-        metadata: { type: 'FactoryJSON', defaultValue: {} }
+        action: { type: 'String', nullable: false },
+        context: { type: 'FactoryJSON', defaultValue: {} }
       },
       resolve: 'createQueue'
     },
@@ -17,7 +18,7 @@ export default {
         runner: { type: 'Int'},
         state: { type: 'RunnerQueueStateEnum' },
         forwarded: { type: 'Int' },
-        metadata: { type: 'FactoryJSON' }
+        context: { type: 'FactoryJSON' }
       },
       resolve: 'updateQueue'
     },
@@ -45,6 +46,8 @@ export default {
         host: { type: 'String' },
         port: { type: 'Int' },
         zone: { type: 'String' },
+        state: { type: 'RunnerNodeStateEnum' },
+        checkin: { type: 'FactoryDateTime' },
         metadata: { type: 'FactoryJSON' }
       },
       resolve: 'updateRunner'
@@ -81,6 +84,15 @@ export default {
         id: { type: 'String', nullable: false }
       },
       resolve: 'deleteZone'
+    },
+    checkinRunner: {
+      type: 'Boolean',
+      args: {
+        id: { type: 'String', nullable: false },
+        state: { type: 'RunnerNodeStateEnum', nullable: false },
+        offlineAfter: { type: 'Int', nullable: false }
+      },
+      resolve: 'checkinRunner'
     }
   }
 }

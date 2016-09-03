@@ -4,7 +4,7 @@
 import _ from 'lodash'
 import { createTable, DEFAULT_TABLES, now } from './common'
 import { createQueue, readQueue, updateQueue, deleteQueue } from './queue'
-import { createRunner, readRunner, updateRunner, deleteRunner } from './runner'
+import { createRunner, readRunner, updateRunner, deleteRunner, checkinRunner } from './runner'
 import { createZone, readZone, updateZone, deleteZone } from './zone'
 
 function RethinkDBBackend (r, graphql, opts = {}, connection) {
@@ -38,6 +38,7 @@ function RethinkDBBackend (r, graphql, opts = {}, connection) {
     readRunner: readRunner(this),
     updateRunner: updateRunner(this),
     deleteRunner: deleteRunner(this),
+    checkinRunner: checkinRunner(this),
 
     // zone
     createZone: createZone(this),

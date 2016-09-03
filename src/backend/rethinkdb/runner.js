@@ -42,6 +42,14 @@ export function readRunner (backend) {
         .filter((node) => node('zone')('id').eq(args.zone))
     } else if (args.state) {
       filter = table.filter({ state: args.state })
+    } else if (args.host && args.port) {
+      filter = table.filter((node) => {
+        return node('host').match(`(?i)^${args.host}$`).and(node('port').eq(args.port))
+      })
+    } else if (args.host) {
+      filter = table.filter((node) => node('host').match(`(?i)^${args.host}$`))
+    } else if (args.port) {
+      filter = table.filter({ port: args.port })
     }
     return filter.run(connection)
   }
@@ -87,9 +95,44 @@ export function deleteRunner (backend) {
   }
 }
 
+// function to check in a runner state and update others that are past their poll
+export function checkinRunner (backend) {
+  let r = backend._r
+  let table = backend._db.table(backend._tables.RunnerNode.table)
+  let connection = backend._connection
+  return function (source, args, context, info) {
+    return table.get(args.id)
+      .eq(null)
+      .branch(
+        r.error(`Runner ${args.id} not found`),
+        table.get(args.id).update({
+          checkin: r.now(),
+          state: args.state
+        })
+          .do(() => {
+            return table.filter((node) => {
+              return node('id')
+                .ne(args.id)
+                .and(
+                  node('checkin')
+                    .eq(null)
+                    .or(
+                      r.now().sub(node('checkin')).ge(args.offlineAfter)
+                    )
+                )
+            })
+              .update({ state: 'OFFLINE' })
+          })
+          .do(() => true)
+          .run(connection)
+      )
+  }
+}
+
 export default {
   createRunner,
   readRunner,
   updateRunner,
-  deleteRunner
+  deleteRunner,
+  checkinRunner
 }

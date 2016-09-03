@@ -3,18 +3,18 @@ export default {
     readQueue: {
       type: ['RunnerQueue'],
       args: {
-        id: { type: 'String' },
-        host: { type: 'String' },
-        port: { type: 'Int' },
-        zone: { type: 'String' },
-        state: { type: 'RunnerNodeStateEnum' }
+        id: { type: 'String' }
       },
       resolve: 'readQueue'
     },
     readRunner: {
       type: ['RunnerNode'],
       args: {
-        id: { type: 'String' }
+        id: { type: 'String' },
+        host: { type: 'String' },
+        port: { type: 'Int' },
+        zone: { type: 'String' },
+        state: { type: 'RunnerNodeStateEnum' }
       },
       resolve: 'readRunner'
     },
