@@ -25,10 +25,25 @@ export function createRunner (backend) {
 }
 
 export function readRunner (backend) {
+  let zone = backend._db.table(backend._tables.RunnerZone.table)
   let table = backend._db.table(backend._tables.RunnerNode.table)
   let connection = backend._connection
   return function (source, args, context, info) {
-    return (args.id ? table.filter({ id: args.id }) : table).run(connection)
+    if (!_.keys(args).length) return table.run(connection)
+    if (args.id) return table.filter({ id: args.id }).run(connection)
+    let filter = table
+
+    if (args.zone) {
+      filter = table.merge((node) => {
+        return {
+          zone: node.hasFields('zone').branch(zone.get(node('zone')), { id: null })
+        }
+      })
+        .filter((node) => node('zone')('id').eq(args.zone))
+    } else if (args.state) {
+      filter = table.filter({ state: args.state })
+    }
+    return filter.run(connection)
   }
 }
 

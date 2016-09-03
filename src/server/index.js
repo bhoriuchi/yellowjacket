@@ -2,10 +2,8 @@ import http from 'http'
 import events from 'events'
 import SocketServer from 'socket.io'
 import bunyan from 'bunyan'
-import getNodeConfig from './getNodeConfig'
-import heartbeat from './heartbeat'
-import offlineNode from './offlineNode'
 import startListeners from './startListeners'
+
 import {
   OFFLINE,
   ONLINE,
@@ -14,43 +12,45 @@ import {
 
 function handler (req, res) {
   res.writeHead(200)
-  res.end('ONLINE')
+  res.end(ONLINE)
 }
 
 // server object constructor
-function Server (lib, helper) {
+function Server (lib, helper, actions, scheduler) {
   let { error, pretty, options } = helper
   let { cmd, host, port, role, id, loglevel, logfile } = options
+
+  // check that the actions and scheduler are functions
+  if (!_.isFunction(actions) || !_.isFunction(scheduler)) throw new Error('Invalid actions or scheduler')
+
+  // set up logging
   let logConfig = getLogConfig(loglevel, logfile)
-  this._hb = {}
-  this._peers = {}
+  this._logger = logConfig.level !== 100 ? bunyan.createLogger(logConfig) : false
+
+  // reference helper functions
   this._pretty = pretty
   this._error = error
+
+  // store the server config
+  this._actions = actions(this)
+  this._scheduler = scheduler(this)
   this._lib = lib
-  this._roles = []
   this._state = OFFLINE
   this._host = host
   this._port = Number(port)
+
+  // set up socket.io server
   this._app = http.createServer(handler)
   this._app.listen(port)
-  this._event = new events.EventEmitter()
   this._io = new SocketServer(this._app)
-  this._hbInterval = 5000
-  this._hbTimeout = 2000
-  this._logger = logConfig.level !== 100 ? bunyan.createLogger(logConfig) : false
+
+  // set up event emitter for local communication
+  this._event = new events.EventEmitter()
 
   this.logInfo(`* Starting [YELLOWJACKET] server on ${host}:${port}`)
-
-  return this.getNodeConfig((err, nodes, config) => {
-    this._id = config.id
-    this.startListeners()
-    this.heartbeat()
-  })
+  this.startListeners()
 }
 
-Server.prototype.getNodeConfig = getNodeConfig
-Server.prototype.heartbeat = heartbeat
-Server.prototype.offlineNode = offlineNode
 Server.prototype.startListeners = startListeners
 
 // logging prototypes

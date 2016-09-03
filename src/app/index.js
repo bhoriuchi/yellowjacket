@@ -12,7 +12,7 @@ import runCommand from './command'
 import startServer from './start'
 import { pretty, makeError } from './common'
 
-export default function (backend, options) {
+export default function (backend, options, actions, scheduler) {
   let getopt = options ? () => { showHelp: () => true } : getOptions()
   let error = makeError(getopt)
   if (!backend) error('A backend is required but was not supplied')
@@ -25,7 +25,7 @@ export default function (backend, options) {
   if (add) addNode(lib, helper)
   else if (remove) console.log('REMOVING')
   else if (update) console.log('UPDATING')
-  else if (start) startServer(lib, helper)
+  else if (start) startServer(lib, helper, actions, scheduler)
   else if (cmd) runCommand(lib, helper)
   else error('No action specified. add, remove, update, start, or cmd must be specified', true)
 }

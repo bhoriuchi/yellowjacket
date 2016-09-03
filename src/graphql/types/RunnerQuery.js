@@ -3,7 +3,11 @@ export default {
     readQueue: {
       type: ['RunnerQueue'],
       args: {
-        id: { type: 'String' }
+        id: { type: 'String' },
+        host: { type: 'String' },
+        port: { type: 'Int' },
+        zone: { type: 'String' },
+        state: { type: 'RunnerNodeStateEnum' }
       },
       resolve: 'readQueue'
     },

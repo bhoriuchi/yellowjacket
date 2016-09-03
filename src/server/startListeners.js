@@ -9,8 +9,7 @@ export default function startListeners () {
       id: this._id,
       host: this._host,
       port: this._port,
-      state: this._state,
-      roles: this._roles
+      state: this._state
     }
   }
 
@@ -18,11 +17,7 @@ export default function startListeners () {
   this._io.on('connection', (socket) => {
     socket.emit('connected')
     socket.on('status', () => socket.emit('status', currentStatus()))
-    socket.on('heartbeat', () => socket.emit('up', currentStatus()))
-  })
-
-  // local event listeners
-  this._event.on('heartbeat.poll.complete', () => {
-    this.logTrace('Heartbeat poll complete')
+    socket.on('schedule', (action, args) => this._scheduler(action, args))
+    socket.on('run', () => console.log('check run queue'))
   })
 }

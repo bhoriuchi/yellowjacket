@@ -5,8 +5,19 @@ import YJApp from '../../src/app'
 import YJInstaller from '../../src/app/install'
 let backend = new RethinkDBBackend(rethinkdbdash({ silent: true }), graphql)
 
+
+let actions = function (yj) {
+  return {
+    print: () => console.log('test')
+  }
+}
+
+let scheduler = function (yj) {
+
+}
+
 export function yjcli () {
-  YJApp(backend)
+  YJApp(backend, undefined, actions, scheduler)
 }
 
 export function yjinstall () {
