@@ -15,6 +15,9 @@ import { pretty, makeError } from './common'
 export default function (backend, options, actions, scheduler) {
   let getopt = options ? () => { showHelp: () => true } : getOptions()
   let error = makeError(getopt)
+
+  console.log(getopt)
+  process.exit()
   if (!backend) error('A backend is required but was not supplied')
   let opts = options ? options : getopt.parseSystem().options
 

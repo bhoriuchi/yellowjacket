@@ -36,6 +36,9 @@ let config = {
             logfile: { type: 'String' }
           }
         }
+      },
+      options: {
+        help: true
       }
     }
   }
@@ -43,5 +46,17 @@ let config = {
 
 
 export default function () {
-  return NestedOpts(config)
+  let options = {}
+  let opts = NestedOpts(config).options
+  if (!opts.valid) return
+
+  options.target = opts.command
+  if (opts.subcommand) {
+    options.action = opts.subcommand.command
+    options.options = opts.subcommand.options
+  } else if (opts.options) {
+    options.options = opts.options
+  }
+  options.showHelp = () => 'placeholder for showhelp'
+  return options
 }
