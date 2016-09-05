@@ -8,10 +8,10 @@ export function pretty (obj, path) {
   return JSON.stringify(obj, null, '  ')
 }
 
-export function makeError (getopt) {
+export function makeError (options) {
   return function (msg, showHelp = false, terminate = true) {
     console.error(chalk.red('ERROR:', msg))
-    if (showHelp) getopt.showHelp()
+    if (showHelp && options.showHelp) options.showHelp()
     if (terminate) process.exit()
   }
 }

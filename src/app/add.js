@@ -2,7 +2,8 @@ import _ from 'lodash'
 import chalk from 'chalk'
 
 export default function (lib, helper) {
-  let { error, pretty, options: { host, port, role } } = helper
+  let { error, pretty, options } = helper
+  let { host, port } = options.options
 
   let args = []
   if (!host) error('Add operation requires a host option')

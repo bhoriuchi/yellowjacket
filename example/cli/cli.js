@@ -8,12 +8,24 @@ let backend = new RethinkDBBackend(rethinkdbdash({ silent: true }), graphql)
 
 let actions = function (yj) {
   return {
-    print: () => console.log('test')
+    print: {
+      run () {
+        console.log('Im running print')
+      },
+      success () {
+        console.log('I ran print SUCCESSFULLY')
+      },
+      fail () {
+        console.error('I FAILED print')
+      }
+    }
   }
 }
 
 let scheduler = function (yj) {
-
+  return function (runnerId, nodes, context) {
+    return new Promise((resolve, reject) => resolve(runnerId))
+  }
 }
 
 export function yjcli () {

@@ -1,7 +1,13 @@
+import chalk from 'chalk'
 import NestedOpts from 'nested-opts'
 
 let config = {
-  options: {},
+  options: {
+    error (err) {
+      console.error(chalk.red('ERROR:', err.message || err))
+      process.exit()
+    }
+  },
   commands: {
     runner: {
       commands: {
@@ -29,16 +35,46 @@ let config = {
         },
         start: {
           options: {
-            id: { type: 'String' },
             host: { type: 'String' },
             port: { type: 'Int' },
             loglevel: { type: 'String' },
             logfile: { type: 'String' }
           }
+        },
+        list: {
+          options: {
+            id: { type: 'String' },
+            host: { type: 'String' },
+            port: { type: 'Int' },
+            state: { type: 'String' },
+            zone: { type: 'String' }
+          }
+        },
+        status: {
+          options: {
+            id: { type: 'String' },
+            host: { type: 'String' },
+            port: { type: 'Int' }
+          }
         }
       },
       options: {
         help: true
+      }
+    },
+    zone: {
+      options: {
+        list: true
+      }
+    },
+    queue: {
+      options: {
+        list: true
+      }
+    },
+    settings: {
+      options: {
+        list: true
       }
     }
   }

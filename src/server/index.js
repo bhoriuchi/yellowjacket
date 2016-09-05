@@ -14,7 +14,7 @@ import { OFFLINE, MAINTENANCE, ONLINE, getLogConfig } from './common'
 // server object constructor
 function Server (lib, helper, actions, scheduler) {
   let { error, pretty, options } = helper
-  let { cmd, host, port, loglevel, logfile, checkin } = options
+  let { host, port, loglevel, logfile } = options.options
 
   // check that the actions and scheduler are functions
   if (!_.isFunction(actions) || !_.isFunction(scheduler)) throw new Error('Invalid actions or scheduler')

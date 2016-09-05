@@ -7,35 +7,38 @@
  */
 import gql from '../graphql'
 import getOptions from './options'
-import addNode from './add'
-import runCommand from './command'
-import startServer from './start'
+import add from './add'
+import start from './start'
+import list from './list'
+import status from './status'
 import { pretty, makeError } from './common'
 
 export default function (backend, options, actions, scheduler) {
-  let getopt = options ? () => { showHelp: () => true } : getOptions()
-  let error = makeError(getopt)
+  options = options || getOptions()
+  let error = makeError(options)
 
-  console.log(getopt)
-  process.exit()
   if (!backend) error('A backend is required but was not supplied')
-  let opts = options ? options : getopt.parseSystem().options
-
-  // validate the port
-  opts.port = opts.port || 8080
-  if (isNaN(opts.port)) error('The port specified is not valid. A port must be between 1 - 65535')
-  opts.port = Math.round(Number(opts.port))
-  if (opts.port < 1 || opts.port > 65535) error('The port specified is not valid. A port must be between 1 - 65535')
 
   let lib = gql(backend)
-  let helper = { options: opts, error, pretty}
-  let { add, remove, update, start, cmd } = opts
+  let helper = { options, error, pretty}
 
-  // perform operations
-  if (add) addNode(lib, helper)
-  else if (remove) console.log('REMOVING')
-  else if (update) console.log('UPDATING')
-  else if (start) startServer(lib, helper, actions, scheduler)
-  else if (cmd) runCommand(lib, helper)
-  else error('No action specified. add, remove, update, start, or cmd must be specified', true)
+  switch (options.target) {
+    case 'runner':
+      if (options.action === 'list') return list(options.target, lib, helper)
+      if (options.action === 'add') return add(lib, helper)
+      if (options.action === 'start') return start(lib, helper, actions, scheduler)
+      if (options.action === 'status') return status(lib, helper)
+      return error(`Invalid ${options.target} options`, true)
+    case 'zone':
+      if (options.options && options.options.list) return list(options.target, lib, helper)
+      return error(`Invalid ${options.target} options`, true)
+    case 'queue':
+      if (options.options && options.options.list) return list(options.target, lib, helper)
+      return error(`Invalid ${options.target} options`, true)
+    case 'settings':
+      if (options.options && options.options.list) return list(options.target, lib, helper)
+      return error(`Invalid ${options.target} options`, true)
+    default:
+      error('Invalid options', true)
+  }
 }
