@@ -11,16 +11,30 @@ socket.on('connected', () => {
     }
   })
 })
+socket.on('schedule.accept', () => {
+  console.log('Accepted schedule request')
+  socket.emit('disconnect')
+  socket.disconnect(0)
+  process.exit()
+})
 
 socket.on('schedule.error', (err) => {
   console.log('Schedule Error')
   console.log(err)
+  socket.emit('disconnect')
+  socket.disconnect(0)
   process.exit()
 })
 
 socket.on('connect_error', () => {
+  console.log('connection error')
+  socket.emit('disconnect')
+  socket.disconnect(0)
   process.exit()
 })
 socket.on('connect_timeout', () => {
+  console.log('timed out')
+  socket.emit('disconnect')
+  socket.disconnect(0)
   process.exit()
 })

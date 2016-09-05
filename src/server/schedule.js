@@ -2,6 +2,7 @@ import _ from 'lodash'
 import SocketClient from 'socket.io-client'
 import QueueState from '../graphql/types/RunnerQueueStateEnum'
 import RunnerState from '../graphql/types/RunnerNodeStateEnum'
+import { toLiteralJSON } from './common'
 let { UNSCHEDULED } = QueueState.values
 let { ONLINE } = RunnerState.values
 
@@ -56,13 +57,10 @@ export default function schedule (socket, payload) {
     return new Promise((resolve, reject) => reject('Invalid action requested'))
   }
 
-  let ctx = JSON.stringify(context).replace(/(\"(.*)\"):/g,'$2:')
-  console.log(ctx)
-
   return this._lib.Runner(`mutation Mutation {
       createQueue (
         action: "${action}",
-        context: {},
+        context: ${toLiteralJSON(context)},
         state: ${UNSCHEDULED}
       ) { id, action, context }  
     }`)
@@ -72,6 +70,8 @@ export default function schedule (socket, payload) {
         this.logDebug('Failed to schedule', { method: 'schedule', errors: result.errors, action, marker: 1 })
         return socket.emit('schedule.error', `failed to schedule ${action}`)
       } else {
+        socket.emit('schedule.accept', {})
+
         // get nodes that appear to be online
         return this._lib.Runner(`{
             readRunner (state: ${ONLINE}) { id, host, port, zone { id, name, description, metadata }, state, metadata }
@@ -84,14 +84,27 @@ export default function schedule (socket, payload) {
             }
             return this._scheduler(this._id, nodes, queue)
               .then((nodeList) => {
-                if (!_.isArray(nodeList)) nodeList = [ { id: this._id } ]
-                return getOnlineRunner(!nodeList.length ? [this._id] : nodeList)
+                if (!_.isArray(nodeList)) {
+                  nodeList = [
+                    {
+                      id: this._id,
+                      state: this._state,
+                      host: this._host,
+                      port: this._port
+                    }
+                  ]
+                }
+                return getOnlineRunner(this, nodeList)
                   .then((node) => {
                     console.log('node scheduled is', node)
                   })
+                  .catch((err) => {
+                    console.log('THE ERROR IS', err)
+                    throw err
+                  })
               })
               .catch((err) => {
-                this.logDebug('Failed to schedule', { method: 'schedule', errors: err, action, marker: 3 })
+                this.logDebug('Failed to schedule', { method: 'schedule', errors: err.message, stack: err.stack, action, marker: 3 })
                 return socket.emit('schedule.error', `failed to schedule ${action} because ${err}`)
               })
           })
