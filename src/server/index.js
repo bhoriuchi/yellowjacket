@@ -1,6 +1,5 @@
 import _ from 'lodash'
 import http from 'http'
-import events from 'events'
 import SocketServer from 'socket.io'
 import bunyan from 'bunyan'
 import startListeners from './startListeners'
@@ -8,20 +7,16 @@ import getSelf from './getSelf'
 import getSettings from './getSettings'
 import checkin from './checkin'
 import schedule from './schedule'
+import run from './run'
 import { LOG_LEVELS } from './common'
 import { OFFLINE, MAINTENANCE, ONLINE, getLogConfig } from './common'
 
 // server object constructor
-function Server (lib, helper, actions, scheduler) {
-  let { error, pretty, options } = helper
-  let { host, port, loglevel, logfile } = options.options
+function Server (lib, options, actions, scheduler) {
+  let { host, port, loglevel, logfile } = options
 
   // check that the actions and scheduler are functions
   if (!_.isFunction(actions) || !_.isFunction(scheduler)) throw new Error('Invalid actions or scheduler')
-
-  // reference helper functions
-  this._pretty = pretty
-  this._error = error
 
   // store the server config
   this._actions = actions(this)
@@ -31,7 +26,6 @@ function Server (lib, helper, actions, scheduler) {
   this._host = host
   this._port = Number(port)
   this._server = `${this._host}:${this._port}`
-  this._event = new events.EventEmitter()
 
   // get the global settings
   this.getSettings()
@@ -79,6 +73,7 @@ Server.prototype.checkin = checkin
 Server.prototype.getSelf = getSelf
 Server.prototype.getSettings = getSettings
 Server.prototype.schedule = schedule
+Server.prototype.run = run
 Server.prototype.startListeners = startListeners
 Server.prototype.info = function () {
   return {
@@ -91,28 +86,22 @@ Server.prototype.info = function () {
 
 // logging prototypes
 Server.prototype.logFatal = function (msg, obj = {}) {
-  _.merge(obj, { server: this._server })
-  if (this._logger) this._logger.fatal(obj, msg)
+  if (this._logger) this._logger.fatal(_.merge(obj, { server: this._server }), msg)
 }
 Server.prototype.logError = function (msg, obj = {}) {
-  _.merge(obj, { server: this._server })
-  if (this._logger) this._logger.error(obj, msg)
+  if (this._logger) this._logger.error(_.merge(obj, { server: this._server }), msg)
 }
 Server.prototype.logWarn = function (msg, obj = {}) {
-  _.merge(obj, { server: this._server })
-  if (this._logger) this._logger.warn(obj, msg)
+  if (this._logger) this._logger.warn(_.merge(obj, { server: this._server }), msg)
 }
 Server.prototype.logInfo = function (msg, obj = {}) {
-  _.merge(obj, { server: this._server })
-  if (this._logger) this._logger.info(obj, msg)
+  if (this._logger) this._logger.info(_.merge(obj, { server: this._server }), msg)
 }
 Server.prototype.logDebug = function (msg, obj = {}) {
-  _.merge(obj, { server: this._server })
-  if (this._logger) this._logger.debug(obj, msg)
+  if (this._logger) this._logger.debug(_.merge(obj, { server: this._server }), msg)
 }
 Server.prototype.logTrace = function (msg, obj = {}) {
-  _.merge(obj, { server: this._server })
-  if (this._logger) this._logger.trace(obj, msg)
+  if (this._logger) this._logger.trace(_.merge(obj, { server: this._server }), msg)
 }
 
 export default Server

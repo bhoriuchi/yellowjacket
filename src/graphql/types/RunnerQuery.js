@@ -3,7 +3,9 @@ export default {
     readQueue: {
       type: ['RunnerQueue'],
       args: {
-        id: { type: 'String' }
+        id: { type: 'String' },
+        runner: { type: 'String' },
+        state: { type: 'RunnerQueueStateEnum' }
       },
       resolve: 'readQueue'
     },

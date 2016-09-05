@@ -18,6 +18,22 @@ export const LOG_LEVELS = {
   silent: 100
 }
 
+export function expandGQLErrors (errors) {
+  if (_.isArray(errors)) {
+    return _.map(errors, (e) => {
+      try {
+        return _.isObject(e) ? JSON.stringify(e) : e
+      } catch (err) {
+        return e
+      }
+    })
+  }
+  try {
+    return _.isObject(errors) ? JSON.stringify(errors) : errors
+  } catch (err) {
+    return errors
+  }
+}
 
 export function circular (obj, value = '[Circular]') {
   let circularEx = (_obj, key = null, seen = []) => {
@@ -68,5 +84,6 @@ export default {
   logLevel,
   getLogConfig,
   circular,
-  toLiteralJSON
+  toLiteralJSON,
+  expandGQLErrors
 }

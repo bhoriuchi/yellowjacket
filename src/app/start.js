@@ -6,5 +6,5 @@ export default function (lib, helper, actions, scheduler) {
   let { host, port } = options.options
   helper.options.options.port = port || DEFAULT_HTTP_PORT
   if (!host) return error('No host option was specified', true)
-  return new Server(lib, helper, actions, scheduler)
+  return new Server(lib, helper.options.options, actions, scheduler)
 }

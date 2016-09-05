@@ -15,7 +15,9 @@ export function readQueue (backend) {
   let table = backend._db.table(backend._tables.RunnerQueue.table)
   let connection = backend._connection
   return function (source, args, context, info) {
-    return (args.id ? table.filter({ id: args.id }) : table).run(connection)
+    let filter = table
+    if (args.id || args.state || args.runner) filter = table.filter(args)
+    return filter.run(connection)
   }
 }
 
