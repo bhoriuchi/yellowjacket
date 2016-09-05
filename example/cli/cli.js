@@ -24,8 +24,8 @@ let actions = function (yj) {
 }
 
 let scheduler = function (runner, nodeList, queue, cb) {
-  let nodes = _.filter(nodeList, { id: runner.id })
-  return cb(null, nodes)
+  // let nodes = _.filter(nodeList, { id: runner.id })
+  return cb(null, [ runner.info() ])
 }
 
 export function yjcli () {

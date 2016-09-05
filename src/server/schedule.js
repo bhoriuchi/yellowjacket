@@ -1,9 +1,10 @@
+import chalk from 'chalk'
 import _ from 'lodash'
 import SocketClient from 'socket.io-client'
 import QueueState from '../graphql/types/RunnerQueueStateEnum'
 import RunnerState from '../graphql/types/RunnerNodeStateEnum'
 import { toLiteralJSON } from './common'
-let { UNSCHEDULED } = QueueState.values
+let { SCHEDULED, UNSCHEDULED } = QueueState.values
 let { ONLINE } = RunnerState.values
 
 /*
@@ -12,12 +13,12 @@ let { ONLINE } = RunnerState.values
 export function getNextRunner (nodeList, success, fail, idx = 0) {
   let disconnected = false
   if (idx >= nodeList.length) {
-    if (this._state === ONLINE) return success({ id: this._id })
+    if (this._state === ONLINE) return success(this.info())
     else return fail('No runners meet the run requirements')
   }
   let node = nodeList[idx]
   idx++
-  if (node.id === this._id && this._state === ONLINE) return success({ id: this._id })
+  if (node.id === this._id && this._state === ONLINE) return success(node)
   if (!node.host || !node.port) return getNextRunner.call(this, nodeList, success, fail, idx)
 
   let socket = SocketClient(`http://${node.host}:${node.port}`, { timeout: 2000 })
@@ -65,34 +66,33 @@ export function setSchedule (socket, action, context, nodes, queue) {
         socket.emit('schedule.error', `failed to schedule ${action} because ${err}`)
         return reject(err)
       }
-      if (!_.isArray(nodeList)) {
-        nodeList = [this.info()]
-      }
+      if (!_.isArray(nodeList)) nodeList = [this.info()]
       return resolve(checkRunners.call(this, nodeList)
         .then((node) => {
-          console.log('node scheduled is', node)
+          return this._lib.Runner(`
+            mutation Mutation {
+              updateQueue (
+                id: "${queue.id}",
+                runner: "${node.id}",
+                state: ${SCHEDULED}
+              ) { id }
+            }
+          `)
+            .then((result) => {
+              console.log(chalk.blue(JSON.stringify(result, null, '  ')))
+              let queue = _.get(result, 'data.updateQueue')
+              if (result.errors) throw new Error('Failed to update queue')
+              this.logInfo('Successfully scheduled queue', {
+                runner: node.id,
+                queue: queue.id
+              })
+            })
+            .catch((err) => {
+              this.logDebug('Failed to schedule', { method: 'schedule', errors: err.message, stack: err.stack, action, marker: 4 })
+            })
         }))
     })
   })
-
-  return this._scheduler(this, nodes, queue)
-    .then((nodeList) => {
-      if (!_.isArray(nodeList)) {
-        nodeList = [this.info()]
-      }
-      return checkRunners.call(this, nodeList)
-        .then((node) => {
-          console.log('node scheduled is', node)
-        })
-        .catch((err) => {
-          console.log('THE ERROR IS', err)
-          throw err
-        })
-    })
-    .catch((err) => {
-      this.logDebug('Failed to schedule', { method: 'schedule', errors: err.message, stack: err.stack, action, marker: 3 })
-      return socket.emit('schedule.error', `failed to schedule ${action} because ${err}`)
-    })
 }
 
 /*

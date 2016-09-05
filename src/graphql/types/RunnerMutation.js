@@ -3,7 +3,6 @@ export default {
     createQueue: {
       type: 'RunnerQueue',
       args: {
-        runner: { type: 'Int' },
         state: { type: 'RunnerQueueStateEnum', defaultValue: 'UNSCHEDULED' },
         forwarded: { type: 'Int', defaultValue: 0 },
         action: { type: 'String', nullable: false },
@@ -15,7 +14,7 @@ export default {
       type: 'RunnerQueue',
       args: {
         id: { type: 'String', nullable: false },
-        runner: { type: 'Int'},
+        runner: { type: 'String'},
         state: { type: 'RunnerQueueStateEnum' },
         forwarded: { type: 'Int' },
         context: { type: 'FactoryJSON' }
