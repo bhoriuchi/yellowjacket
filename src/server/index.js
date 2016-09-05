@@ -80,6 +80,14 @@ Server.prototype.getSelf = getSelf
 Server.prototype.getSettings = getSettings
 Server.prototype.schedule = schedule
 Server.prototype.startListeners = startListeners
+Server.prototype.info = function () {
+  return {
+    id: this._id,
+    host: this._host,
+    port: this._port,
+    state: this._state
+  }
+}
 
 // logging prototypes
 Server.prototype.logFatal = function (msg, obj = {}) {
