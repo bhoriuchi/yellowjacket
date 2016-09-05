@@ -21,7 +21,7 @@ export default function list (type, lib, helper) {
       }
     }
 
-    return lib.Runner(`{ readRunner ${args} { id, host, port, zone { id, name, description, metadata }, state, metadata } }`)
+    return lib.Runner(`{ readRunner ${args} { id, host, port, zone { id, name, description, metadata }, state, checkin, metadata } }`)
       .then((res) => {
         if (res.errors) return error(pretty(res.errors))
         console.log(chalk.blue.bold('Runner Nodes:'))
