@@ -1,3 +1,4 @@
+import _ from 'lodash'
 import * as graphql from 'graphql'
 import rethinkdbdash from 'rethinkdbdash'
 import { rethinkdb as RethinkDBBackend } from '../../src/backend'
@@ -24,7 +25,8 @@ let actions = function (yj) {
 
 let scheduler = function (yj) {
   return function (runnerId, nodes, context) {
-    return new Promise((resolve, reject) => resolve(runnerId))
+    let node = _.filter(nodes, { id: runnerId })
+    return new Promise((resolve, reject) => resolve([node]))
   }
 }
 

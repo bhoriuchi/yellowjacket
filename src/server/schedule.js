@@ -47,7 +47,9 @@ export function getOnlineRunner (self, nodeList) {
   return new Promise((resolve, reject) => getNextRunner(self, nodeList, resolve, reject))
 }
 
-export default function schedule (socket, action, context) {
+export default function schedule (socket, payload) {
+  let { action, context } = payload
+
   if (!_.has(this._actions, action)) {
     socket.emit('schedule.error', `${action} is not a known action`)
     this.logError('Invalid action requested', { method: 'schedule', action })
@@ -57,7 +59,7 @@ export default function schedule (socket, action, context) {
   return this._lib.Runner(`mutation Mutation {
       createQueue (
         action: "${action}",
-        context: "${JSON.stringify(context)}",
+        context: ${JSON.stringify(context).replace(/(\"(.*)\"):/g,'$2:')},
         state: ${UNSCHEDULED}
       ) { id, action, context }  
     }`)
