@@ -16,16 +16,17 @@ function Server (lib, options, actions, scheduler) {
   let { host, port, loglevel, logfile } = options
 
   // check that the actions and scheduler are functions
-  if (!_.isFunction(actions) || !_.isFunction(scheduler)) throw new Error('Invalid actions or scheduler')
+  if (!_.isObject(actions) || !_.isFunction(scheduler)) throw new Error('Invalid actions or scheduler')
 
   // store the server config
-  this._actions = actions(this)
+  this._actions = actions
   this._scheduler = scheduler
   this._lib = lib
   this._state = OFFLINE
   this._host = host
   this._port = Number(port)
   this._server = `${this._host}:${this._port}`
+  // this.running = {}
 
   // get the global settings
   this.getSettings()

@@ -1,4 +1,5 @@
 import _ from 'lodash'
+import chalk from 'chalk'
 import * as graphql from 'graphql'
 import rethinkdbdash from 'rethinkdbdash'
 import { rethinkdb as RethinkDBBackend } from '../../src/backend'
@@ -7,19 +8,10 @@ import YJInstaller from '../../src/app/install'
 let backend = new RethinkDBBackend(rethinkdbdash({ silent: true }), graphql)
 
 
-let actions = function (yj) {
-  return {
-    print: {
-      run () {
-        console.log('Im running print')
-      },
-      success () {
-        console.log('I ran print SUCCESSFULLY')
-      },
-      fail () {
-        console.error('I FAILED print')
-      }
-    }
+let actions = {
+  print (runner, context, done) {
+    console.log(chalk.green(JSON.stringify(context, null, '  ')))
+    done()
   }
 }
 
