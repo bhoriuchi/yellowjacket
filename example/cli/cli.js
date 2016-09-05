@@ -23,11 +23,9 @@ let actions = function (yj) {
   }
 }
 
-let scheduler = function (yj) {
-  return function (runnerId, nodes, context) {
-    let node = _.filter(nodes, { id: runnerId })
-    return new Promise((resolve, reject) => resolve(node))
-  }
+let scheduler = function (runner, nodeList, queue, cb) {
+  let nodes = _.filter(nodeList, { id: runner.id })
+  return cb(null, nodes)
 }
 
 export function yjcli () {

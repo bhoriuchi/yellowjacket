@@ -58,7 +58,24 @@ export function checkRunners (nodeList) {
  * Assigns task to a runner
  */
 export function setSchedule (socket, action, context, nodes, queue) {
-  return this._scheduler(this._id, nodes, queue)
+  return new Promise((resolve, reject) => {
+    return this._scheduler(this, nodes, queue, (err, nodeList) => {
+      if (err) {
+        this.logDebug('Failed to schedule', { method: 'schedule', errors: err.message, stack: err.stack, action, marker: 3 })
+        socket.emit('schedule.error', `failed to schedule ${action} because ${err}`)
+        return reject(err)
+      }
+      if (!_.isArray(nodeList)) {
+        nodeList = [this.info()]
+      }
+      return resolve(checkRunners.call(this, nodeList)
+        .then((node) => {
+          console.log('node scheduled is', node)
+        }))
+    })
+  })
+
+  return this._scheduler(this, nodes, queue)
     .then((nodeList) => {
       if (!_.isArray(nodeList)) {
         nodeList = [this.info()]
@@ -82,7 +99,7 @@ export function setSchedule (socket, action, context, nodes, queue) {
  * Queries runner document for online runners and then calls
  * function to check node directly via socket status message
  */
-export function getOnlineRunner (socket, action, context) {
+export function getOnlineRunner (socket, action, context, queue) {
   // get nodes that appear to be online
   return this._lib.Runner(`{
             readRunner (state: ${ONLINE}) { id, host, port, zone { id, name, description, metadata }, state, metadata }
@@ -115,7 +132,7 @@ export function createQueue (socket, action, context) {
         return socket.emit('schedule.error', `failed to schedule ${action}`)
       } else {
         socket.emit('schedule.accept', {})
-        return getOnlineRunner.call(this, socket, action, context)
+        return getOnlineRunner.call(this, socket, action, context, queue)
       }
     })
     .catch((err) => {

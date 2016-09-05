@@ -25,7 +25,7 @@ function Server (lib, helper, actions, scheduler) {
 
   // store the server config
   this._actions = actions(this)
-  this._scheduler = scheduler(this)
+  this._scheduler = scheduler
   this._lib = lib
   this._state = OFFLINE
   this._host = host
@@ -51,7 +51,7 @@ function Server (lib, helper, actions, scheduler) {
       // get the current nodes config
       return this.getSelf()
         .then((self) => {
-          this._id = self.id
+          this.id = this._id = self.id
           this._state = self.state === MAINTENANCE ? MAINTENANCE : ONLINE
           return this.checkin().then(() => {
 
