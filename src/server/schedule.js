@@ -56,45 +56,49 @@ export default function schedule (socket, payload) {
     return new Promise((resolve, reject) => reject('Invalid action requested'))
   }
 
+  let ctx = JSON.stringify(context).replace(/(\"(.*)\"):/g,'$2:')
+  console.log(ctx)
+
   return this._lib.Runner(`mutation Mutation {
       createQueue (
         action: "${action}",
-        context: ${JSON.stringify(context).replace(/(\"(.*)\"):/g,'$2:')},
+        context: {},
         state: ${UNSCHEDULED}
       ) { id, action, context }  
     }`)
     .then((result) => {
       let queue = _.get(result, 'data.createQueue')
       if (result.errors || !queue) {
-        this.logDebug('Failed to schedule', { method: 'schedule', errors: result.errors, action })
+        this.logDebug('Failed to schedule', { method: 'schedule', errors: result.errors, action, marker: 1 })
         return socket.emit('schedule.error', `failed to schedule ${action}`)
       } else {
         // get nodes that appear to be online
         return this._lib.Runner(`{
-          readRunner (state: ${ONLINE}) { id, host, port, zone { id, name, description, metadata }, state, metadata } }
-        }`)
+            readRunner (state: ${ONLINE}) { id, host, port, zone { id, name, description, metadata }, state, metadata }
+          }`)
           .then((result) => {
             let nodes = _.get(result, 'data.readRunner')
             if (result.errors || !nodes) {
-              this.logDebug('Failed to schedule', { method: 'schedule', errors: result.errors, action })
+              this.logDebug('Failed to schedule', { method: 'schedule', errors: result.errors, action, marker: 2 })
               return socket.emit('schedule.error', `failed to schedule ${action}`)
             }
             return this._scheduler(this._id, nodes, queue)
               .then((nodeList) => {
-                return getOnlineRunner(!_.isArray(nodeList) || !nodeList.length ? [this._id] : nodeList)
+                if (!_.isArray(nodeList)) nodeList = [ { id: this._id } ]
+                return getOnlineRunner(!nodeList.length ? [this._id] : nodeList)
                   .then((node) => {
                     console.log('node scheduled is', node)
                   })
               })
               .catch((err) => {
-                this.logDebug('Failed to schedule', { method: 'schedule', errors: err, action })
+                this.logDebug('Failed to schedule', { method: 'schedule', errors: err, action, marker: 3 })
                 return socket.emit('schedule.error', `failed to schedule ${action} because ${err}`)
               })
           })
       }
     })
     .catch((err) => {
-      this.logDebug('Failed to schedule', { method: 'schedule', errors: err, action })
+      this.logDebug('Failed to schedule', { method: 'schedule', errors: err, action, marker: 4 })
       return socket.emit('schedule.error', `failed to schedule ${action}`)
     })
 }
