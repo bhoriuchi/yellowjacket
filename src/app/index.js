@@ -5,7 +5,8 @@
  * optionally if you do not want to use the cli an options hash can be passed as the second argument
  *
  */
-import gql from '../graphql'
+import _ from 'lodash'
+import gql from '../graphql/index'
 import getOptions from './options'
 import add from './add'
 import start from './start'
@@ -14,8 +15,9 @@ import status from './status'
 import { pretty, makeError } from './common'
 
 export default function (backend, options, actions, scheduler) {
+  let terminate = !_.isObject(options)
   options = options || getOptions()
-  let error = makeError(options)
+  let error = makeError(options, terminate)
 
   if (!backend) error('A backend is required but was not supplied')
 

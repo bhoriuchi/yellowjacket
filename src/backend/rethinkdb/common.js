@@ -1,5 +1,3 @@
-import _ from 'lodash'
-
 export const DEFAULT_TABLES = {
   RunnerNode: {
     table: 'runner_node',

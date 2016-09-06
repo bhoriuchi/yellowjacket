@@ -1,5 +1,5 @@
-import schemas from './schemas'
-import types from './types'
+import schemas from './schemas/index'
+import types from './types/index'
 import GraphQLFactory from 'graphql-factory'
 import FactoryTypePlugin from 'graphql-factory-types'
 

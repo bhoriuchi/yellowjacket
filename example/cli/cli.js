@@ -2,9 +2,9 @@ import _ from 'lodash'
 import chalk from 'chalk'
 import * as graphql from 'graphql'
 import rethinkdbdash from 'rethinkdbdash'
-import { rethinkdb as RethinkDBBackend } from '../../src/backend'
-import YJApp from '../../src/app'
-import YJInstaller from '../../src/app/install'
+import { rethinkdb as RethinkDBBackend } from '../../backend' //'../../src/backend'
+import YJApp from '../../index' // '../../src/app'
+import YJInstaller from '../../install' // '../../src/app/install'
 let backend = new RethinkDBBackend(rethinkdbdash({ silent: true }), graphql)
 
 
