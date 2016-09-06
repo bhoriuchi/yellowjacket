@@ -7,6 +7,7 @@ Scalable task runner
 
 ### Notes
 * current documentation has been quickly thrown together and will improve with future releases
+* **Load balancing** tested with a simple [NGINX configuration](https://github.com/bhoriuchi/yellowjacket/blob/master/example/nginx.conf)
 
 ### Example
 
@@ -93,6 +94,10 @@ Commands are constructed by creating an object with the following structure
   * `port` {`Int`} - port the runner was added with
   * `loglevel`: {`LogLevelEnum`} - Level of logging
   * `logfile`: {`String`} - Path to a log file
+* `stop` - host/port combo or ID
+  * `id` {`String`} - runner ID
+  * `host` {`String`} - host name or IP the runner was added with
+  * `port` {`Int`} - port the runner was added with
 * `list` - no options lists all runners
   * `host` {`String`} - list runners with host
   * `port` {`Int`} - list runners with port
@@ -104,6 +109,7 @@ Commands are constructed by creating an object with the following structure
 > cli runner add host localhost port 8080
 > cli runner list
 > cli runner start host localhost port 8080
+> cli runner stop host localhost port 8080
 ```
 
 
@@ -121,6 +127,7 @@ Commands are constructed by creating an object with the following structure
 
 **options**
   * `list` - lists all settings
+
 ---
 
 #### types

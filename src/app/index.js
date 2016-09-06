@@ -10,6 +10,7 @@ import gql from '../graphql/index'
 import getOptions from './options'
 import add from './add'
 import start from './start'
+import stop from './stop'
 import list from './list'
 import status from './status'
 import { pretty, makeError } from './common'
@@ -30,6 +31,7 @@ export default function (backend, options, actions, scheduler) {
       if (options.action === 'add') return add(lib, helper)
       if (options.action === 'start') return start(lib, helper, actions, scheduler)
       if (options.action === 'status') return status(lib, helper)
+      if (options.action === 'stop') return stop(lib, helper)
       return error(`Invalid ${options.target} options`, true)
     case 'zone':
       if (options.options && options.options.list) return list(options.target, lib, helper)

@@ -369,6 +369,13 @@ var config = {
             logfile: { type: 'String' }
           }
         },
+        stop: {
+          options: {
+            id: { type: 'String' },
+            host: { type: 'String' },
+            port: { type: 'Int' }
+          }
+        },
         list: {
           options: {
             id: { type: 'String' },
@@ -411,6 +418,7 @@ var config = {
 function getOptions () {
   var options = {};
   var opts = NestedOpts(config).options;
+
   if (!opts.valid) return;
 
   options.target = opts.command;
@@ -459,7 +467,11 @@ var EVENTS = {
   SCHEDULE_ERROR: 'schedule.error',
   SCHEDULE_ACCEPT: 'schedule.accept',
   RUN: 'run',
-  OK: 'ok'
+  OK: 'ok',
+  STOP: 'stop',
+  STOP_ERROR: 'stop.error',
+  RESTART: 'restart',
+  RESTART_ERROR: 'restart.error'
 };
 
 var CONNECTION = EVENTS.CONNECTION;
@@ -467,6 +479,7 @@ var CONNECTED = EVENTS.CONNECTED;
 var STATUS = EVENTS.STATUS;
 var SCHEDULE = EVENTS.SCHEDULE;
 var RUN = EVENTS.RUN;
+var STOP = EVENTS.STOP;
 
 
 function startListeners() {
@@ -483,6 +496,10 @@ function startListeners() {
       return _this.schedule(socket, payload);
     });
     socket.on(RUN, _this.run(socket));
+    socket.on(STOP, function () {
+      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+      return _this.stop(socket, options);
+    });
   });
 }
 
@@ -992,6 +1009,55 @@ function run(socket) {
   };
 }
 
+var OK$2 = EVENTS.OK;
+
+
+function forceStop(socket) {
+  // send an ok response to cleanly exit
+  // but also set a timeout for 5 seconds to ensure the process exits
+  socket.emit(OK$2);
+  socket.on(OK$2, function () {
+    return process.exit();
+  });
+  setTimeout(function () {
+    return process.exit();
+  }, 5000);
+}
+
+function processStop(socket, options) {
+  var _this = this;
+
+  var count = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
+
+  // check for force option
+  if (options.force) return forceStop(socket);
+  if (_.keys(this.running).length && count <= options.maxWait) {
+    return setTimeout(function () {
+      return processStop.call(_this, socket, options, count++);
+    }, 1000);
+  }
+  return forceStop(socket);
+}
+
+function stop(socket) {
+  var _this2 = this;
+
+  var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+  this.logInfo('Server stop requested');
+  options.maxWait = isNaN(options.maxWait) ? 30 : Math.round(Number(options.maxWait));
+
+  // set the runner offline so that it will not be scheduled any new tasks
+  this.state = OFFLINE;
+
+  // check in to update the database
+  return this.checkin().then(function () {
+    return processStop.call(_this2, socket, options);
+  }).catch(function () {
+    return processStop.call(_this2, socket, options);
+  });
+}
+
 // server object constructor
 function Server(lib, options, actions, scheduler) {
   var _this = this;
@@ -1006,6 +1072,7 @@ function Server(lib, options, actions, scheduler) {
   if (!_.isObject(actions) || !_.isFunction(scheduler)) throw new Error('Invalid actions or scheduler');
 
   // store the server config
+  this._options = options;
   this._actions = actions;
   this._scheduler = scheduler;
   this._lib = lib;
@@ -1059,6 +1126,7 @@ Server.prototype.getSelf = getSelf;
 Server.prototype.getSettings = getSettings;
 Server.prototype.schedule = schedule;
 Server.prototype.run = run;
+Server.prototype.stop = stop;
 Server.prototype.startListeners = startListeners;
 Server.prototype.info = function () {
   return {
@@ -1122,6 +1190,8 @@ function makeError(options, canTerminate) {
 function start (lib, helper, actions, scheduler) {
   var error = helper.error;
   var options = helper.options;
+
+  if (!options || !_.has(options, 'options')) return error('Invalid options');
   var _options$options = options.options;
   var host = _options$options.host;
   var port = _options$options.port;
@@ -1129,6 +1199,39 @@ function start (lib, helper, actions, scheduler) {
   helper.options.options.port = port || DEFAULT_HTTP_PORT;
   if (!host) return error('No host option was specified', true);
   return new Server(lib, helper.options.options, actions, scheduler);
+}
+
+function stop$1(lib, helper) {
+  var error = helper.error;
+  var options = helper.options;
+
+  var opts = options.options;
+  if (!opts) return error('No options specified');
+
+  var args = _.trim(_.trim(toLiteralJSON(opts), '{'), '}');
+
+  return lib.Runner('{\n    readRunner (' + args + ') { id, host, port }\n  }').then(function (result) {
+    var runner = _.get(result, 'data.readRunner[0]');
+    if (result.errors || !runner) return error(result.errors || 'Could not find runner');
+
+    var socket = SocketClient('http://' + runner.host + ':' + runner.port, { timeout: 2000 });
+    socket.on('connected', function () {
+      return socket.emit('stop');
+    });
+    socket.on('ok', function (data) {
+      socket.emit('ok');
+      socket.emit('disconnect');
+      process.exit();
+    });
+    socket.on('connect_error', function () {
+      return error('Socket connection error, the runner may not be listening');
+    });
+    socket.on('connect_timeout', function () {
+      return error('Socket connection timeout, the runner may not be listening');
+    });
+  }).catch(function (err) {
+    return error;
+  });
 }
 
 function list(type, lib, helper) {
@@ -1250,6 +1353,7 @@ function index (backend, options, actions, scheduler) {
       if (options.action === 'add') return add(lib, helper);
       if (options.action === 'start') return start(lib, helper, actions, scheduler);
       if (options.action === 'status') return status(lib, helper);
+      if (options.action === 'stop') return stop$1(lib, helper);
       return error('Invalid ' + options.target + ' options', true);
     case 'zone':
       if (options.options && options.options.list) return list(options.target, lib, helper);

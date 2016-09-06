@@ -41,6 +41,13 @@ let config = {
             logfile: { type: 'String' }
           }
         },
+        stop: {
+          options: {
+            id: { type: 'String' },
+            host: { type: 'String' },
+            port: { type: 'Int' }
+          }
+        },
         list: {
           options: {
             id: { type: 'String' },
@@ -84,6 +91,7 @@ let config = {
 export default function () {
   let options = {}
   let opts = NestedOpts(config).options
+
   if (!opts.valid) return
 
   options.target = opts.command

@@ -9,5 +9,9 @@ export const EVENTS = {
   SCHEDULE_ERROR: 'schedule.error',
   SCHEDULE_ACCEPT: 'schedule.accept',
   RUN: 'run',
-  OK: 'ok'
+  OK: 'ok',
+  STOP: 'stop',
+  STOP_ERROR: 'stop.error',
+  RESTART: 'restart',
+  RESTART_ERROR: 'restart.error'
 }

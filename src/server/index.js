@@ -8,6 +8,7 @@ import getSettings from './getSettings'
 import checkin from './checkin'
 import schedule from './schedule'
 import run from './run'
+import stop from './stop'
 import { LOG_LEVELS } from './common'
 import { OFFLINE, MAINTENANCE, ONLINE, getLogConfig } from './common'
 
@@ -19,6 +20,7 @@ function Server (lib, options, actions, scheduler) {
   if (!_.isObject(actions) || !_.isFunction(scheduler)) throw new Error('Invalid actions or scheduler')
 
   // store the server config
+  this._options = options
   this._actions = actions
   this._scheduler = scheduler
   this._lib = lib
@@ -75,6 +77,7 @@ Server.prototype.getSelf = getSelf
 Server.prototype.getSettings = getSettings
 Server.prototype.schedule = schedule
 Server.prototype.run = run
+Server.prototype.stop = stop
 Server.prototype.startListeners = startListeners
 Server.prototype.info = function () {
   return {
