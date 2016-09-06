@@ -5,6 +5,7 @@ export default {
     SCHEDULED: 'SCHEDULED',
     RUNNING: 'RUNNING',
     COMPLETE: 'COMPLETE',
-    FAILED: 'FAILED'
+    FAILED: 'FAILED',
+    RESCHEDULE: 'RESCHEDULE'
   }
 }

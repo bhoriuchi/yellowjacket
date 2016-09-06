@@ -26,7 +26,7 @@ function Server (lib, options, actions, scheduler) {
   this._host = host
   this._port = Number(port)
   this._server = `${this._host}:${this._port}`
-  // this.running = {}
+  this.running = {}
 
   // get the global settings
   this.getSettings()
