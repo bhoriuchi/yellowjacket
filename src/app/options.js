@@ -63,6 +63,15 @@ let config = {
             host: { type: 'String' },
             port: { type: 'Int' }
           }
+        },
+        schedule: {
+          options: {
+            id: { type: 'String' },
+            host: { type: 'String' },
+            port: { type: 'Int' },
+            action: { type: 'String' },
+            context: { type: 'JSON' }
+          }
         }
       },
       options: {

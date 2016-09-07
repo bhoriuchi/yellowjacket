@@ -391,6 +391,15 @@ var config = {
             host: { type: 'String' },
             port: { type: 'Int' }
           }
+        },
+        schedule: {
+          options: {
+            id: { type: 'String' },
+            host: { type: 'String' },
+            port: { type: 'Int' },
+            action: { type: 'String' },
+            context: { type: 'JSON' }
+          }
         }
       },
       options: {
@@ -1292,6 +1301,62 @@ function status (lib, helper) {
   }).catch(error);
 }
 
+function schedule$1 (lib, helper) {
+  var error = helper.error;
+  var pretty = helper.pretty;
+  var options = helper.options;
+  var terminate = helper.terminate;
+  var _options$options = options.options;
+  var id = _options$options.id;
+  var host = _options$options.host;
+  var port = _options$options.port;
+  var action = _options$options.action;
+  var context = _options$options.context;
+
+  context = context || {};
+  var args = '';
+  if (id) args = 'id: "' + id + '"';else if (host && port) args = 'host: "' + host + '", port: ' + port;else return error('Schedule requires either a valid ID or hostname, port combo');
+  if (!action) return error('No action specified');
+
+  return lib.Runner('{ readRunner (' + args + ') { id, host, port } }').then(function (res) {
+    var nodeInfo = _.get(res, 'data.readRunner[0]');
+    if (res.errors) return error(pretty(res.errors));
+    if (!nodeInfo) return error('Runner not found');
+    var socket = SocketClient('http://' + nodeInfo.host + ':' + nodeInfo.port, { timeout: 2000 });
+    socket.on('connected', function () {
+      return socket.emit('schedule', { action: action, context: context });
+    });
+
+    socket.on('schedule.accept', function () {
+      console.log('Accepted schedule request');
+      socket.emit('disconnect');
+      socket.disconnect(0);
+      if (terminate) process.exit();
+    });
+
+    socket.on('schedule.error', function (err) {
+      console.log('Schedule Error');
+      console.log(err);
+      socket.emit('disconnect');
+      socket.disconnect(0);
+      if (terminate) process.exit();
+    });
+
+    socket.on('connect_error', function () {
+      console.log('connection error');
+      socket.emit('disconnect');
+      socket.disconnect(0);
+      if (terminate) process.exit();
+    });
+    socket.on('connect_timeout', function () {
+      console.log('timed out');
+      socket.emit('disconnect');
+      socket.disconnect(0);
+      if (terminate) process.exit();
+    });
+  }).catch(error);
+}
+
 /*
  * yellowjacket command line builder
  *
@@ -1307,7 +1372,7 @@ function index (backend, options, actions, scheduler) {
   if (!backend) error('A backend is required but was not supplied');
 
   var lib = gql(backend);
-  var helper = { options: options, error: error, pretty: pretty };
+  var helper = { options: options, error: error, pretty: pretty, terminate: terminate };
 
   switch (options.target) {
     case 'runner':
@@ -1316,6 +1381,7 @@ function index (backend, options, actions, scheduler) {
       if (options.action === 'start') return start(lib, helper, actions, scheduler);
       if (options.action === 'status') return status(lib, helper);
       if (options.action === 'stop') return stop$1(lib, helper);
+      if (options.action === 'schedule') return schedule$1(lib, helper);
       return error('Invalid ' + options.target + ' options', true);
     case 'zone':
       if (options.options && options.options.list) return list(options.target, lib, helper);
