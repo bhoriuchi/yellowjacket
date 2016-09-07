@@ -24,7 +24,7 @@ export default function (backend, options, actions, scheduler) {
   if (!backend) error('A backend is required but was not supplied')
 
   let lib = gql(backend)
-  let helper = { options, error, pretty, terminate}
+  let helper = { options, error, pretty, terminate, backend }
 
   switch (options.target) {
     case 'runner':

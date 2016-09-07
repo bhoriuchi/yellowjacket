@@ -1026,10 +1026,11 @@ function stop(socket) {
 }
 
 // server object constructor
-function Server(lib, options, actions, scheduler) {
+function Server(backend, lib, options, actions, scheduler) {
   var _this = this;
 
-  if (!(this instanceof Server)) return new Server(lib, options, actions, scheduler);
+  if (!(this instanceof Server)) return new Server(backend, lib, options, actions, scheduler);
+  backend.server = this;
   var host = options.host;
   var port = options.port;
   var loglevel = options.loglevel;
@@ -1158,6 +1159,7 @@ function makeError(options, canTerminate) {
 function start (lib, helper, actions, scheduler) {
   var error = helper.error;
   var options = helper.options;
+  var backend = helper.backend;
 
   if (!options || !_.has(options, 'options')) return error('Invalid options');
   var _options$options = options.options;
@@ -1166,7 +1168,7 @@ function start (lib, helper, actions, scheduler) {
 
   helper.options.options.port = port || DEFAULT_HTTP_PORT;
   if (!host) return error('No host option was specified', true);
-  return new Server(lib, helper.options.options, actions, scheduler);
+  return new Server(backend, lib, helper.options.options, actions, scheduler);
 }
 
 var toObjectString = factory.utils.toObjectString;
@@ -1372,7 +1374,7 @@ function index (backend, options, actions, scheduler) {
   if (!backend) error('A backend is required but was not supplied');
 
   var lib = gql(backend);
-  var helper = { options: options, error: error, pretty: pretty, terminate: terminate };
+  var helper = { options: options, error: error, pretty: pretty, terminate: terminate, backend: backend };
 
   switch (options.target) {
     case 'runner':
