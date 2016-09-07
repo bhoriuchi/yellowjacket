@@ -14,6 +14,7 @@ import { OFFLINE, MAINTENANCE, ONLINE, getLogConfig } from './common'
 
 // server object constructor
 function Server (lib, options, actions, scheduler) {
+  if (!(this instanceof Server)) return new Server(lib, options, actions, scheduler)
   let { host, port, loglevel, logfile } = options
 
   // check that the actions and scheduler are functions

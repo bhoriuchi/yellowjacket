@@ -1,13 +1,14 @@
 import _ from 'lodash'
 import SocketClient from 'socket.io-client'
-import { toLiteralJSON } from '../server/common'
+import factory from 'graphql-factory'
+let { toObjectString } = factory.utils
 
 export default function stop (lib, helper) {
   let { error, options } = helper
   let opts = options.options
   if (!opts) return error('No options specified')
 
-  let args = _.trim(_.trim(toLiteralJSON(opts), '{'), '}')
+  let args = _.trim(_.trim(toObjectString(opts), '{'), '}')
 
   return lib.Runner(`{
     readRunner (${args}) { id, host, port }

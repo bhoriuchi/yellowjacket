@@ -2,7 +2,7 @@ import _ from 'lodash'
 import SocketClient from 'socket.io-client'
 import QueueState from '../graphql/types/RunnerQueueStateEnum'
 import RunnerState from '../graphql/types/RunnerNodeStateEnum'
-import { toLiteralJSON } from './common'
+import factory from 'graphql-factory'
 import { EVENTS } from './const'
 let source = 'server/schedule.js'
 let { SCHEDULED, UNSCHEDULED } = QueueState.values
@@ -191,7 +191,7 @@ export function createQueue (socket, action, context) {
   return this._lib.Runner(`mutation Mutation {
       createQueue (
         action: "${action}",
-        context: ${toLiteralJSON(context)},
+        context: ${factory.utils.toObjectString(context)},
         state: ${UNSCHEDULED}
       ) { id, action, context }  
     }`)

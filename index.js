@@ -3,7 +3,7 @@
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var _ = _interopDefault(require('lodash'));
-var GraphQLFactory = _interopDefault(require('graphql-factory'));
+var factory = _interopDefault(require('graphql-factory'));
 var FactoryTypePlugin = _interopDefault(require('graphql-factory-types'));
 var chalk = _interopDefault(require('chalk'));
 var NestedOpts = _interopDefault(require('nested-opts'));
@@ -324,9 +324,9 @@ var types = {
 };
 
 function gql (backend) {
-  var factory = GraphQLFactory(backend._graphql);
+  var factory$$ = factory(backend._graphql);
   var functions = backend.functions;
-  return factory.make({ functions: functions, types: types, schemas: schemas }, { plugin: [FactoryTypePlugin] });
+  return factory$$.make({ functions: functions, types: types, schemas: schemas }, { plugin: [FactoryTypePlugin] });
 }
 
 var config = {
@@ -506,7 +506,6 @@ function startListeners() {
 function getSelf() {
   var _this = this;
 
-  console.log('port', this._port);
   return this._lib.Runner('{\n  readRunner (\n    host: "' + this._host + '",\n    port: ' + this._port + '\n  )\n  {\n    id,\n    state\n  }\n}').then(function (result) {
     var runner = _.get(result, 'data.readRunner[0]');
     if (result.errors) throw new Error(result.errors);
@@ -557,47 +556,6 @@ function expandGQLErrors(errors) {
   } catch (err) {
     return errors;
   }
-}
-
-function circular(obj) {
-  var value = arguments.length <= 1 || arguments[1] === undefined ? '[Circular]' : arguments[1];
-
-  var circularEx = function circularEx(_obj) {
-    var key = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
-    var seen = arguments.length <= 2 || arguments[2] === undefined ? [] : arguments[2];
-
-    seen.push(_obj);
-    if (_.isObject(_obj)) {
-      _.forEach(_obj, function (o, i) {
-        if (_.includes(seen, o)) _obj[i] = _.isFunction(value) ? value(_obj, key, _.clone(seen)) : value;else circularEx(o, i, _.clone(seen));
-      });
-    }
-    return _obj;
-  };
-
-  if (!obj) throw new Error('circular requires an object to examine');
-  return circularEx(obj, value);
-}
-
-function toLiteralJSON(obj) {
-  var toLiteralEx = function toLiteralEx(o) {
-    if (_.isArray(o)) {
-      return '[' + _.map(o, function (v) {
-        return toLiteralEx(v);
-      }).join(',') + ']';
-    } else if (_.isString(o)) {
-      return '"' + o + '"';
-    } else if (_.isDate(o)) {
-      return '"' + o.toISOString() + '"';
-    } else if (_.isObject(o)) {
-      return '{' + _.map(o, function (v, k) {
-        return k + ':' + toLiteralEx(v);
-      }).join(',') + '}';
-    } else {
-      return o;
-    }
-  };
-  return toLiteralEx(circular(obj));
 }
 
 function logLevel() {
@@ -832,7 +790,7 @@ function getOnlineRunner(socket, action, context, queue) {
 function createQueue(socket, action, context) {
   var _this5 = this;
 
-  return this._lib.Runner('mutation Mutation {\n      createQueue (\n        action: "' + action + '",\n        context: ' + toLiteralJSON(context) + ',\n        state: ' + UNSCHEDULED + '\n      ) { id, action, context }  \n    }').then(function (result) {
+  return this._lib.Runner('mutation Mutation {\n      createQueue (\n        action: "' + action + '",\n        context: ' + factory.utils.toObjectString(context) + ',\n        state: ' + UNSCHEDULED + '\n      ) { id, action, context }  \n    }').then(function (result) {
     var queue = _.get(result, 'data.createQueue');
     if (result.errors || !queue) {
       _this5.logDebug('Failed to schedule', {
@@ -1062,6 +1020,7 @@ function stop(socket) {
 function Server(lib, options, actions, scheduler) {
   var _this = this;
 
+  if (!(this instanceof Server)) return new Server(lib, options, actions, scheduler);
   var host = options.host;
   var port = options.port;
   var loglevel = options.loglevel;
@@ -1201,6 +1160,9 @@ function start (lib, helper, actions, scheduler) {
   return new Server(lib, helper.options.options, actions, scheduler);
 }
 
+var toObjectString = factory.utils.toObjectString;
+
+
 function stop$1(lib, helper) {
   var error = helper.error;
   var options = helper.options;
@@ -1208,7 +1170,7 @@ function stop$1(lib, helper) {
   var opts = options.options;
   if (!opts) return error('No options specified');
 
-  var args = _.trim(_.trim(toLiteralJSON(opts), '{'), '}');
+  var args = _.trim(_.trim(toObjectString(opts), '{'), '}');
 
   return lib.Runner('{\n    readRunner (' + args + ') { id, host, port }\n  }').then(function (result) {
     var runner = _.get(result, 'data.readRunner[0]');

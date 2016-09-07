@@ -22,8 +22,8 @@
   "dependencies": {
     "bunyan": "^1.8.1",
     "chalk": "^1.1.3",
-    "graphql-factory": "^0.4.0",
-    "graphql-factory-types": "^0.1.0",
+    "graphql-factory": "^0.4.4",
+    "graphql-factory-types": "^0.1.1",
     "lodash": "^4.15.0",
     "nested-opts": "^0.1.0",
     "node-getopt": "^0.2.3",

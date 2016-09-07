@@ -1,7 +1,6 @@
 import _ from 'lodash'
 
 export default function getSelf () {
-  console.log('port', this._port)
   return this._lib.Runner(`{
   readRunner (
     host: "${this._host}",
