@@ -497,6 +497,7 @@ function startListeners() {
   this.logInfo('Socket server is now listening on ' + this._server, { method: 'startListeners' });
 
   this._io.on(CONNECTION, function (socket) {
+    _this.logDebug('Connection made', { client: _.get(socket, 'conn.remoteAddress', 'unknown') });
     socket.emit(CONNECTED);
     socket.on(STATUS, function () {
       return socket.emit(STATUS, _this.info());
@@ -584,10 +585,11 @@ function getLogConfig(appName) {
   return { name: appName, streams: logStreams };
 }
 
-function checkin() {
+function checkin(first) {
   var _this = this;
 
-  this.logTrace('Checking in ' + this._server);
+  var msg = first ? 'First check in for ' + this._server : 'Checking in ' + this._server;
+  this.logTrace(msg);
   setTimeout(function () {
     return _this.checkin();
   }, this._checkinFrequency * ONE_SECOND_IN_MS);
@@ -1069,7 +1071,7 @@ function Server(backend, lib, options, actions, scheduler) {
     return _this.getSelf().then(function (self) {
       _this.id = _this._id = self.id;
       _this._state = self.state === MAINTENANCE ? MAINTENANCE : ONLINE;
-      return _this.checkin().then(function () {
+      return _this.checkin(true).then(function () {
 
         // set up socket.io server
         _this._app = http.createServer(function (req, res) {
@@ -1080,7 +1082,7 @@ function Server(backend, lib, options, actions, scheduler) {
         _this._io = new SocketServer(_this._app);
 
         // if the state is online start the listeners
-        if (self.state === ONLINE) _this.startListeners();
+        if (_this._state === ONLINE) _this.startListeners();
       });
     });
   }).catch(function (err) {
@@ -1102,7 +1104,8 @@ Server.prototype.info = function () {
     id: this._id,
     host: this._host,
     port: this._port,
-    state: this._state
+    state: this._state,
+    running: this.running
   };
 };
 
@@ -1304,59 +1307,90 @@ function status (lib, helper) {
 }
 
 function schedule$1 (lib, helper) {
-  var error = helper.error;
-  var pretty = helper.pretty;
-  var options = helper.options;
-  var terminate = helper.terminate;
-  var _options$options = options.options;
-  var id = _options$options.id;
-  var host = _options$options.host;
-  var port = _options$options.port;
-  var action = _options$options.action;
-  var context = _options$options.context;
+  var resolveArgs = new Promise(function (resolve, reject) {
+    var error = helper.error;
+    var pretty = helper.pretty;
+    var options = helper.options;
+    var terminate = helper.terminate;
+    var _options$options = options.options;
+    var id = _options$options.id;
+    var host = _options$options.host;
+    var port = _options$options.port;
+    var action = _options$options.action;
+    var context = _options$options.context;
 
-  context = context || {};
-  var args = '';
-  if (id) args = 'id: "' + id + '"';else if (host && port) args = 'host: "' + host + '", port: ' + port;else return error('Schedule requires either a valid ID or hostname, port combo');
-  if (!action) return error('No action specified');
+    context = context || {};
+    var args = '';
+    if (id) args = 'id: "' + id + '"';else if (host && port) args = 'host: "' + host + '", port: ' + port;else return reject('Schedule requires either a valid ID or hostname, port combo');
+    if (!action) return reject('No action specified');
+    return resolve({ args: args, context: context, pretty: pretty, action: action, terminate: terminate });
+  });
 
-  return lib.Runner('{ readRunner (' + args + ') { id, host, port } }').then(function (res) {
-    var nodeInfo = _.get(res, 'data.readRunner[0]');
-    if (res.errors) return error(pretty(res.errors));
-    if (!nodeInfo) return error('Runner not found');
-    var socket = SocketClient('http://' + nodeInfo.host + ':' + nodeInfo.port, { timeout: 2000 });
-    socket.on('connected', function () {
-      return socket.emit('schedule', { action: action, context: context });
-    });
+  return resolveArgs.then(function (_ref) {
+    var args = _ref.args;
+    var context = _ref.context;
+    var pretty = _ref.pretty;
+    var action = _ref.action;
+    var terminate = _ref.terminate;
 
-    socket.on('schedule.accept', function () {
-      console.log('Accepted schedule request');
-      socket.emit('disconnect');
-      socket.disconnect(0);
-      if (terminate) process.exit();
-    });
+    var timeout = 2000;
+    return lib.Runner('{ readRunner (' + args + ') { id, host, port } }').then(function (res) {
+      return new Promise(function (resolve, reject) {
+        var disconnected = false;
+        var nodeInfo = _.get(res, 'data.readRunner[0]');
+        if (res.errors) return reject(pretty(res.errors));
+        if (!nodeInfo) return reject('Runner not found');
 
-    socket.on('schedule.error', function (err) {
-      console.log('Schedule Error');
-      console.log(err);
-      socket.emit('disconnect');
-      socket.disconnect(0);
-      if (terminate) process.exit();
-    });
+        var uri = 'http://' + nodeInfo.host + ':' + nodeInfo.port;
+        var socket = SocketClient(uri, { timeout: timeout });
 
-    socket.on('connect_error', function () {
-      console.log('connection error');
-      socket.emit('disconnect');
-      socket.disconnect(0);
-      if (terminate) process.exit();
+        setTimeout(function () {
+          if (!disconnected) {
+            socket.emit('disconnect');
+            socket.disconnect(0);
+            reject('Fallback timeout reached');
+            if (terminate) process.exit();
+          }
+        }, timeout);
+
+        socket.on('connected', function () {
+          socket.emit('schedule', { action: action, context: context });
+        });
+
+        socket.on('schedule.accept', function () {
+          disconnected = true;
+          socket.emit('disconnect');
+          socket.disconnect(0);
+          resolve('Accepted schedule request');
+          if (terminate) process.exit();
+        });
+
+        socket.on('schedule.error', function (err) {
+          disconnected = true;
+          socket.emit('disconnect');
+          socket.disconnect(0);
+          reject(err);
+          if (terminate) process.exit();
+        });
+
+        socket.on('connect_error', function () {
+          socket.emit('disconnect');
+          disconnected = true;
+          socket.disconnect(0);
+          reject('Schedule error');
+          if (terminate) process.exit();
+        });
+        socket.on('connect_timeout', function () {
+          disconnected = true;
+          socket.emit('disconnect');
+          socket.disconnect(0);
+          reject('Schedule error');
+          if (terminate) process.exit();
+        });
+      });
     });
-    socket.on('connect_timeout', function () {
-      console.log('timed out');
-      socket.emit('disconnect');
-      socket.disconnect(0);
-      if (terminate) process.exit();
-    });
-  }).catch(error);
+  });
+  //.catch(error)
 }
 
 /*

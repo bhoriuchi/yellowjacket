@@ -1,8 +1,9 @@
 import _ from 'lodash'
 import { ONE_SECOND_IN_MS } from './common'
 
-export default function checkin () {
-  this.logTrace(`Checking in ${this._server}`)
+export default function checkin (first) {
+  let msg = first ? `First check in for ${this._server}` : `Checking in ${this._server}`
+  this.logTrace(msg)
   setTimeout(() => this.checkin(), this._checkinFrequency * ONE_SECOND_IN_MS)
 
   return this._lib.Runner(`mutation Mutation {

@@ -52,7 +52,7 @@ function Server (backend, lib, options, actions, scheduler) {
         .then((self) => {
           this.id = this._id = self.id
           this._state = self.state === MAINTENANCE ? MAINTENANCE : ONLINE
-          return this.checkin().then(() => {
+          return this.checkin(true).then(() => {
 
             // set up socket.io server
             this._app = http.createServer((req, res) => {
@@ -63,7 +63,7 @@ function Server (backend, lib, options, actions, scheduler) {
             this._io = new SocketServer(this._app)
 
             // if the state is online start the listeners
-            if (self.state === ONLINE) this.startListeners()
+            if (this._state === ONLINE) this.startListeners()
           })
         })
     })
@@ -86,7 +86,8 @@ Server.prototype.info = function () {
     id: this._id,
     host: this._host,
     port: this._port,
-    state: this._state
+    state: this._state,
+    running: this.running
   }
 }
 
