@@ -16,14 +16,16 @@
     "build:install": "npm run build:copybrc && rollup -c build/rollup.install.config.js && npm run build:rmbrc",
     "build:backend": "npm run build:copybrc && rollup -c build/rollup.backend.config.js && npm run build:rmbrc",
     "build": "npm run build:app && npm run build:backend && npm run build:install",
-    "test": "npm run build && mocha test/index.js"
+    "test": "npm run build && mocha test/index.js",
+    "copybe": "cp ../graphql-factory-backend/*.js node_modules/graphql-factory-backend/"
   },
   "author": "Branden Horiuchi <bhoriuchi@gmail.com>",
   "dependencies": {
     "bunyan": "^1.8.1",
     "chalk": "^1.1.3",
-    "graphql-factory": "^0.4.4",
+    "graphql-factory": "^0.4.7",
     "graphql-factory-types": "^0.1.1",
+    "graphql-factory-backend": "git+https://github.com/graphql-factory/graphql-factory-backend.git#master",
     "lodash": "^4.15.0",
     "nested-opts": "^0.1.0",
     "node-getopt": "^0.2.3",
