@@ -1,7 +1,9 @@
 import _ from 'lodash'
 import { EVENTS } from '../common/const'
 import RunnerNodeStateEnum from '../graphql/types/RunnerNodeStateEnum'
+import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
 let { values: { ONLINE } } = RunnerNodeStateEnum
+let { values: { SCHEDULED} } = RunnerQueueStateEnum
 
 let {
   CONNECTED, CONNECT_ERROR, CONNECT_TIMEOUT, DISCONNECT, STATUS, SCHEDULE_ERROR, SCHEDULE_ACCEPT, RUN, OK
@@ -13,9 +15,28 @@ export function getNextRunner (list, resolve, reject) {
 
 }
 
-export function checkRunners (list) {
+export function checkRunners (context, queue, list, socket) {
   let check = new Promise((resolve, reject) => getNextRunner.call(this, list, resolve, reject))
 
+  return check.then((runner) => {
+    return this.queries.updateQueue({
+      id: queue.id,
+      runner: runner.id,
+      state: SCHEDULED
+    })
+      .then(() => {
+        this.log.debug({ server: this._server, runner: runner.id, queue: queue.id }, 'successfully scheduled queue')
+        this.emit(runner.host, runner.port, RUN, undefined, OK, (error, success) => {
+          if (error) {
+            return this.log.warn({ server: this._server, target: `${runner.host}:${runner.port}`}, 'run signal failed')
+          }
+          this.log.trace({ server: this._server, target: `${runner.host}:${runner.port}`}, 'successfully signaled run')
+        })
+      })
+      .catch((error) => {
+        this.log.debug({ error, server: this._server, target: `${runner.host}:${runner.port}`}, 'failed to signal run')
+      })
+  })
 }
 
 
@@ -38,7 +59,7 @@ export function setSchedule (action, context, queue, runners, socket) {
       }
 
       // check each runner in the list until one that is ONLINE is found
-      return resolve(checkRunners.call(this, list))
+      return resolve(checkRunners.call(this, context, queue, list, socket))
     })
   })
 }

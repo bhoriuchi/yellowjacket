@@ -25,11 +25,21 @@ export const EVENTS = {
   STOP: 'stop',
   STOP_ERROR: 'stop.error',
   RESTART: 'restart',
-  RESTART_ERROR: 'restart.error'
+  RESTART_ERROR: 'restart.error',
+  AUTHENTICATE: 'authenticate',
+  TOKEN: 'token',
+  AUTHENTICATION_ERROR: 'authentication.error',
+  AUTHENTICATED: 'authenticated'
 }
+
+// defaults for JWT
+export const SIGNING_KEY = 'twothingsareinfinitetheuniverseandhumanstupidityandimnotsureabouttheuniverse'
+export const SIGNING_ALG = 'RS256'
 
 export default {
   ONE_SECOND_IN_MS,
   LOG_LEVELS,
-  EVENTS
+  EVENTS,
+  SIGNING_KEY,
+  SIGNING_ALG
 }

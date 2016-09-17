@@ -1,17 +1,23 @@
 import _ from 'lodash'
+import fs from 'fs'
 import Events from 'events'
 import http from 'http'
 import SocketServer from 'socket.io'
+import SocketClient from 'socket.io-client'
+import jwt from 'jsonwebtoken'
 import queries from '../graphql/queries/index'
-import { LOG_LEVELS } from '../common/const'
+import { LOG_LEVELS, SIGNING_KEY, SIGNING_ALG, EVENTS } from '../common/const'
 import basicLogger from '../common/basicLogger'
 import startListeners from './startListeners'
 import { RunnerNodeStateEnum } from '../graphql/types/index'
 let { values: { ONLINE, MAINTENANCE } } = RunnerNodeStateEnum
+let { AUTHENTICATE, AUTHENTICATED, TOKEN, DISCONNECT, CONNECT_ERROR, CONNECT_TIMEOUT } = EVENTS
 
 export class YellowJacketServer {
   constructor (backend, actions, scheduler, logger = basicLogger, options = {}) {
-    let { host, port } = options
+    let { host, port, token, socket } = options
+    socket = socket || { secure: false, timeout: 2000 }
+    token = token || { secret: SIGNING_KEY, algorithm: SIGNING_ALG }
     this.log = logger
 
     if (!_.isObject(actions) || !_.isFunction(scheduler)) {
@@ -35,7 +41,13 @@ export class YellowJacketServer {
     this._port = port || 8080
     this._server = `${this._host}:${this._port}`
     this._emitter = new Events.EventEmitter()
+    this._sockets = {}
+    this._socketTimeout = socket.timeout || 2000
+    this._secureSocket = Boolean(socket.secure)
     this._running = {}
+    this._signingKey = token.secret || token.privateKey ? fs.readFileSync(token.privateKey) : SIGNING_KEY
+    this._signingAlg = token.algorithm || SIGNING_ALG
+    this._token = jwt.sign({ host: this._host, port: this._port }, this._signingKey, this._signingAlg)
 
     // get the global settings
     return this.queries.getSettings()
@@ -87,6 +99,75 @@ export class YellowJacketServer {
       port: this._port,
       state: this.state,
       running: _.keys(this.running).length
+    }
+  }
+
+  disconnectSocket (socket) {
+    socket.emit(DISCONNECT)
+    socket.disconnect(0)
+  }
+
+  emit (host, port, event, payload, listener, cb, timeout) {
+    timeout = timeout || this._socketTimeout
+
+    let handler = (error) => (payload) => {
+      if (error) return cb(payload || new Error('unknown handler error'))
+      return cb(null, payload)
+    }
+
+    // check if emitting to self, if so use local even emitter
+    if (host === this._host && port === this._port) return this._emitter.emit(event, payload)
+
+    // check if a socket already exists
+    let socket = _.get(this._sockets, `${host}:${port}`)
+
+    // if it does, emit the event
+    if (socket) {
+      if (!_.has(socket, `listeners["${listener}"]`)) {
+        _.set(socket, `listeners["${listener}"]`, handler)
+        socket.socket.on(listener, handler())
+      }
+      return socket.socket.emit(event, payload)
+    }
+
+    // if it does not, initiate a connection
+    socket = SocketClient(`http${this._socketSecure ? 's' : ''}://${host}:${port}`, { timeout })
+
+    // listen for authentication events
+    socket.on(AUTHENTICATE, () => {
+      socket.emit(TOKEN, this._token)
+    })
+
+    socket.on(AUTHENTICATED, () => {
+      _.set(this._sockets, `${host}:${port}`, { socket, listeners: { [listener]: handler } })
+      socket.emit(event, payload)
+      socket.on(listener, handler())
+    })
+
+    // listen for errors
+    socket.on(CONNECT_ERROR, () => {
+      let s = _.get(this._sockets, `${host}:${port}`)
+      if (s) {
+        this.disconnectSocket(s.socket)
+        delete this._sockets[`${host}:${port}`]
+        return handler(true)(new Error('socket.io connection error'))
+      }
+    })
+    socket.on(CONNECT_TIMEOUT, () => {
+      let s = _.get(this._sockets, `${host}:${port}`)
+      if (s) {
+        this.disconnectSocket(s.socket)
+        delete this._sockets[`${host}:${port}`]
+        return handler(true)(new Error('socket.io connection timeout error'))
+      }
+    })
+  }
+
+  verify (token) {
+    try {
+      return jwt.verify(token, this._signingKey)
+    } catch (error) {
+      return { error }
     }
   }
 
