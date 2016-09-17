@@ -50,10 +50,7 @@ export default {
           state: { type: 'RunnerNodeStateEnum', nullable: false },
           offlineAfter: { type: 'Int', nullable: false }
         },
-        resolve (source, args, context, info) {
-          console.log(this)
-          return true
-        }
+        resolve: 'checkinRunnerNode'
       }
     }
   }

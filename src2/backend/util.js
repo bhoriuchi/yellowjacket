@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import FactoryTypePlugin from 'graphql-factory-types'
-import types from '../graphql/types'
+import { types } from '../graphql/index'
 
 export function mergeConfig (config) {
   // merge plugins
