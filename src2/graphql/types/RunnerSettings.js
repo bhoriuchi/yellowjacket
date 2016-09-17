@@ -18,6 +18,14 @@ export default {
   },
   _backend: {
     schema: 'YJRunner',
-    collection: 'runner_settings'
+    collection: 'runner_settings',
+    query: {
+      read: { resolve: 'readRunnerSettings' }
+    },
+    mutation: {
+      create: { resolve: 'createRunnerSettings' },
+      update: { resolve: 'updateRunnerSettings' },
+      delete: { resolve: 'deleteRunnerSettings' }
+    }
   }
 }

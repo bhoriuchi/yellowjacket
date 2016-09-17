@@ -1,0 +1,22 @@
+import factory from 'graphql-factory'
+
+export default function readRunner (args) {
+  return this._lib.YJRunner(`
+  {
+    readRunnerNode (${factory.utils.toObjectString(args, { noOuterBraces: true })})
+    {
+      id,
+      host,
+      port,
+      zone { id, name, description, metadata },
+      state,
+      metadata
+    }
+  }`)
+    .then((result) => {
+      let runners = _.get(result, 'data.readRunnerNode')
+      if (result.errors) throw new Error(result.errors)
+      if (!runners) throw new Error('No runners')
+      return runners
+    })
+}

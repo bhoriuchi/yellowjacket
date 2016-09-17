@@ -38,15 +38,15 @@ export default {
     mutation: {
       create: {
         before (source, args, context, info) {
-          let { backend: { util: { now } } } = this
-          args.created = now()
-          args.updated = now()
+          let { backend: { q } } = this
+          args.created = q.now().value()
+          args.updated = q.now().value()
         }
       },
       update: {
         before (source, args, context, info) {
-          let { backend: { util: { now } } } = this
-          args.updated = now()
+          let { backend: { q } } = this
+          args.updated = q.now().value()
         }
       }
     }
