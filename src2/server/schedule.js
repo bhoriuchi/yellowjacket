@@ -5,16 +5,27 @@ import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
 let { values: { ONLINE } } = RunnerNodeStateEnum
 let { values: { SCHEDULED} } = RunnerQueueStateEnum
 
-let {
-  CONNECTED, CONNECT_ERROR, CONNECT_TIMEOUT, DISCONNECT, STATUS, SCHEDULE_ERROR, SCHEDULE_ACCEPT, RUN, OK
-} = EVENTS
+let { STATUS, SCHEDULE_ERROR, SCHEDULE_ACCEPT, RUN, OK } = EVENTS
 let source = 'server/schedule'
 
+// gets the next runner in the list and verifies that it is online
+export function getNextRunner (list, success, fail, idx = 0) {
+  if (idx >= nodeList.length) {
+    if (this.state === ONLINE) return success(this.info())
+    else return fail(new Error('No runners meet the run requirements'))
+  }
+  let runner = list[idx]
+  idx++
+  if (runner.id === this.id && this.state === ONLINE) return success(runner)
+  if (!runner.host || !runner.port) return getNextRunner.call(this, list, success, fail, idx)
 
-export function getNextRunner (list, resolve, reject) {
-
+  return this.emit(runner.host, runner.port, STATUS, undefined, STATUS, (err, data) => {
+    if (err || _.get(data, 'state') !== ONLINE) return getNextRunner.call(this, list, success, fail, idx)
+    return success(data)
+  })
 }
 
+// looks through each runner until it finds one that is online and schedules it
 export function checkRunners (context, queue, list, socket) {
   let check = new Promise((resolve, reject) => getNextRunner.call(this, list, resolve, reject))
 
