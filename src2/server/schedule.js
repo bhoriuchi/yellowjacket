@@ -19,10 +19,18 @@ export function getNextRunner (list, success, fail, idx = 0) {
   if (runner.id === this.id && this.state === ONLINE) return success(runner)
   if (!runner.host || !runner.port) return getNextRunner.call(this, list, success, fail, idx)
 
-  return this.emit(runner.host, runner.port, STATUS, undefined, STATUS, (err, data) => {
-    if (err || _.get(data, 'state') !== ONLINE) return getNextRunner.call(this, list, success, fail, idx)
-    return success(data)
-  })
+  return this.emit(
+    runner.host,
+    runner.port,
+    STATUS,
+    undefined,
+    {
+      [STATUS]: (info) => {
+        if (_.get(info, 'state') !== ONLINE) return getNextRunner.call(this, list, success, fail, idx)
+      }
+    },
+    () => getNextRunner.call(this, list, success, fail, idx)
+  )
 }
 
 // looks through each runner until it finds one that is online and schedules it
@@ -37,12 +45,21 @@ export function checkRunners (context, queue, list, socket) {
     })
       .then(() => {
         this.log.debug({ server: this._server, runner: runner.id, queue: queue.id }, 'successfully scheduled queue')
-        this.emit(runner.host, runner.port, RUN, undefined, OK, (error, success) => {
-          if (error) {
-            return this.log.warn({ server: this._server, target: `${runner.host}:${runner.port}`}, 'run signal failed')
+        this.emit(
+          runner.host,
+          runner.port,
+          RUN,
+          undefined,
+          {
+            [OK]: () => {
+              let target = `${runner.host}:${runner.port}`
+              this.log.trace({ server: this._server, target }, 'successfully signaled run')
+            }
+          },
+          () => {
+            this.log.warn({ server: this._server, target: `${runner.host}:${runner.port}`}, 'run signal failed')
           }
-          this.log.trace({ server: this._server, target: `${runner.host}:${runner.port}`}, 'successfully signaled run')
-        })
+        )
       })
       .catch((error) => {
         this.log.debug({ error, server: this._server, target: `${runner.host}:${runner.port}`}, 'failed to signal run')

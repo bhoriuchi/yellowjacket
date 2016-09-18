@@ -1,15 +1,10 @@
 import _ from 'lodash'
 import SocketClient from 'socket.io-client'
-import { EVENTS } from '../common/const'
+import { EVENTS } from './const'
 let { AUTHENTICATE, AUTHENTICATED, TOKEN, CONNECT_ERROR, CONNECT_TIMEOUT } = EVENTS
 
-export default function emit (host, port, event, payload, listener, cb, timeout) {
+export default function emit (host, port, event, payload, listeners = {}, errorHandler = () => true, timeout) {
   timeout = timeout || this._socketTimeout
-
-  let handler = (error) => (payload) => {
-    if (error) return cb(payload || new Error('unknown handler error'))
-    return cb(null, payload)
-  }
 
   // check if emitting to self, if so use local even emitter
   if (host === this._host && port === this._port) return this._emitter.emit(event, payload)
@@ -19,10 +14,12 @@ export default function emit (host, port, event, payload, listener, cb, timeout)
 
   // if it does, emit the event
   if (socket) {
-    if (!_.has(socket, `listeners["${listener}"]`)) {
-      _.set(socket, `listeners["${listener}"]`, handler)
-      socket.socket.on(listener, handler())
-    }
+    _.forEach(listeners, (handler, listener) => {
+      if (!_.has(socket, `listeners["${listener}"]`)) {
+        _.set(socket, `listeners["${listener}"]`, handler)
+        socket.socket.on(listener, handler())
+      }
+    })
     return socket.socket.emit(event, payload)
   }
 
@@ -35,9 +32,11 @@ export default function emit (host, port, event, payload, listener, cb, timeout)
   })
 
   socket.on(AUTHENTICATED, () => {
-    _.set(this._sockets, `${host}:${port}`, { socket, listeners: { [listener]: handler } })
+    _.forEach(listeners, (handler, listener) => {
+      _.set(this._sockets, `${host}:${port}`, { socket, listeners: { [listener]: handler } })
+      socket.on(listener, handler())
+    })
     socket.emit(event, payload)
-    socket.on(listener, handler())
   })
 
   // listen for errors
@@ -46,7 +45,7 @@ export default function emit (host, port, event, payload, listener, cb, timeout)
     if (s) {
       this.disconnectSocket(s.socket)
       delete this._sockets[`${host}:${port}`]
-      return handler(true)(new Error('socket.io connection error'))
+      return errorHandler(new Error('socket.io connection error'))
     }
   })
   socket.on(CONNECT_TIMEOUT, () => {
@@ -54,7 +53,7 @@ export default function emit (host, port, event, payload, listener, cb, timeout)
     if (s) {
       this.disconnectSocket(s.socket)
       delete this._sockets[`${host}:${port}`]
-      return handler(true)(new Error('socket.io connection timeout error'))
+      return errorHandler(new Error('socket.io connection timeout error'))
     }
   })
 }

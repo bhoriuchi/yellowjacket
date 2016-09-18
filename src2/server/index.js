@@ -1,18 +1,16 @@
 import _ from 'lodash'
-import fs from 'fs'
-import path from 'path'
 import Events from 'events'
 import http from 'http'
 import SocketServer from 'socket.io'
-import jwt from 'jsonwebtoken'
 import queries from '../graphql/queries/index'
-import { LOG_LEVELS, SIGNING_KEY, SIGNING_ALG, EVENTS } from '../common/const'
+import { LOG_LEVELS, EVENTS } from '../common/const'
+import tokenStore from '../common/token'
 import basicLogger from '../common/basicLogger'
 import startListeners from './startListeners'
 import scheduleMethod from './schedule'
 import runMethod from './run'
 import stopMethod from './stop'
-import emitMethod from './emit'
+import emitMethod from '../common/emit'
 import { RunnerNodeStateEnum } from '../graphql/types/index'
 let { values: { ONLINE, MAINTENANCE } } = RunnerNodeStateEnum
 let { DISCONNECT } = EVENTS
@@ -21,9 +19,9 @@ export class YellowJacketServer {
   constructor (backend, options = {}) {
     let { host, port, token, socket } = options
     socket = socket || { secure: false, timeout: 2000 }
-    token = token || { secret: SIGNING_KEY, algorithm: SIGNING_ALG }
+    // token = token || { secret: SIGNING_KEY, algorithm: SIGNING_ALG }
 
-    this._logLevel = _.get(LOG_LEVELS, options.loglevel) || 30
+    this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info
     this.log = backend.logger || basicLogger.call(this)
 
     if (!backend) {
@@ -56,12 +54,8 @@ export class YellowJacketServer {
     this._running = {}
 
     // token settings and creation
-    this._signingKey = token.secret || SIGNING_KEY
-    this._signingAlg = token.algorithm || SIGNING_ALG
-    if (_.isString(token.privateKey)) this._signingKey = fs.readFileSync(path.resolve(token.privateKey))
-    let tokenPayload = { host: this._host, port: this._port }
-    let tokenOptions = { algorithm: this._signingAlg }
-    this._token = jwt.sign(tokenPayload, this._signingKey, tokenOptions)
+    this._tokenStore = tokenStore(this._host, this._port, token)
+    this._token = this._tokenStore.token
 
     // get the global settings
     return this.queries.getSettings()
@@ -142,11 +136,7 @@ export class YellowJacketServer {
   }
 
   verify (token) {
-    try {
-      return jwt.verify(token, this._signingKey)
-    } catch (error) {
-      return { error }
-    }
+    return this._tokenStore.verify(token)
   }
 }
 

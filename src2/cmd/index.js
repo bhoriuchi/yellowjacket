@@ -1,6 +1,7 @@
 import _ from 'lodash'
 import { addRunner } from './add'
 import { startRunner } from './start'
+import { scheduleRunner } from './schedule'
 
 export default function cmd (command) {
   if (!_.isObject(command)) throw new Error('Invalid command object')
@@ -18,6 +19,8 @@ export default function cmd (command) {
           return addRunner.call(this, options)
         case 'start':
           return startRunner.call(this, options)
+        case 'schedule':
+          return scheduleRunner.call(this, options)
         default:
           throw new Error('Invalid action')
       }

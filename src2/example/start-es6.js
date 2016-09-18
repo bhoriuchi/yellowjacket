@@ -27,8 +27,9 @@ let seedData = {
 // create backend
 let backend = RethinkDBBackend('_yj', graphql, rethinkdbdash(), {
   actions: {
-    print () {
+    print (backend, context, done) {
       console.log('hello')
+      done()
     }
   }
 })
