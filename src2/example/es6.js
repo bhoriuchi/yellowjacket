@@ -16,6 +16,8 @@ function errorPrint(err) {
 let backend = RethinkDBBackend('_yj', graphql, rethinkdbdash())
 let lib = backend.lib
 
+//console.log(JSON.stringify(lib._definitions.definition.types.YJRunnerMutation, null, '  '))
+//process.exit()
 /*
 lib.YJRunner(`mutation Mutation {
   createRunnerNode (
@@ -31,6 +33,7 @@ lib.YJRunner(`mutation Mutation {
 }`)
 */
 
+/*
 lib.YJRunner(`mutation Mutation {
   checkinRunnerNode (
     id: "d848089d-d48a-4db3-8733-6c8a30969e6b",
@@ -38,12 +41,22 @@ lib.YJRunner(`mutation Mutation {
     offlineAfter: 30000
   )
 }`)
+*/
+backend.cmd({
+  target: 'runner',
+  action: 'add',
+  options: {
+    host: 'localhost',
+    port: Math.round(Date.now() / 100000)
+  }
+})
   .then((result) => {
     if (result.errors) console.log(result)
     else prettyPrint(result, 'green')
     process.exit()
   })
   .catch((err) => {
-    errorPrint(err)
+    console.log(err)
+    //errorPrint(err)
     process.exit()
   })

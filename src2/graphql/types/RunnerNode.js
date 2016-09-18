@@ -40,6 +40,12 @@ export default {
     mutation: {
       create: {
         before (source, args, context, info) {
+          if (!args.host) throw new Error('Missing required field host')
+          if (!args.port) throw new Error('Missing required field port')
+
+          delete args.id
+          delete args.checkin
+
           args.state = OFFLINE
         }
       },

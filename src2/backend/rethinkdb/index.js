@@ -1,7 +1,8 @@
 import factory from 'graphql-factory'
 import { GraphQLFactoryRethinkDBBackend } from 'graphql-factory-backend/rethinkdb'
 import { mergeConfig } from '../util'
-import { functions } from '../../graphql/index'
+import { functions, queries } from '../../graphql/index'
+import cmd from '../../cmd/index'
 
 export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend {
   constructor (namespace, graphql, r, config = {}, connection) {
@@ -10,6 +11,12 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
 
     // add custom functions
     this.addFunctions(functions)
+
+    // add queries
+    this.addQueries(queries(this))
+
+    // add cmd method
+    this.cmd = cmd.bind(this)
   }
 }
 
