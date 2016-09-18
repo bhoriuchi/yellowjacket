@@ -1,5 +1,6 @@
 import _ from 'lodash'
 import fs from 'fs'
+import path from 'path'
 import Events from 'events'
 import http from 'http'
 import SocketServer from 'socket.io'
@@ -17,15 +18,21 @@ let { values: { ONLINE, MAINTENANCE } } = RunnerNodeStateEnum
 let { DISCONNECT } = EVENTS
 
 export class YellowJacketServer {
-  constructor (backend, actions, scheduler, logger = basicLogger, options = {}) {
+  constructor (backend, options = {}) {
     let { host, port, token, socket } = options
     socket = socket || { secure: false, timeout: 2000 }
     token = token || { secret: SIGNING_KEY, algorithm: SIGNING_ALG }
-    this.log = logger
 
-    if (!_.isObject(actions) || !_.isFunction(scheduler)) {
-      this.log.fatal({}, 'invalid actions or scheduler')
-      throw new Error('Invalid actions or scheduler')
+    this._logLevel = _.get(LOG_LEVELS, options.loglevel) || 30
+    this.log = backend.logger || basicLogger.call(this)
+
+    if (!backend) {
+      this.log.fatal({}, 'no backend provided')
+      throw new Error('No backend provided')
+    }
+    if (!_.isObject(backend.actions)) {
+      this.log.fatal({}, 'invalid actions')
+      throw new Error('Invalid actions')
     }
     if (!_.isString(host)) {
       this.log.fatal({}, 'host is invalid or not specified')
@@ -34,12 +41,11 @@ export class YellowJacketServer {
 
     // store props
     this.backend = backend
-    this.actions = actions
+    this.actions = backend.actions
     this.options = options
-    this.scheduler = scheduler
+    this.scheduler = backend.scheduler || function () { return [ this.info() ] }
     this.queries = queries(this)
-    this._logLevel = _.get(LOG_LEVELS, options.loglevel) || 30
-    this._lib = backend.lib
+    this.lib = backend.lib
     this._host = host
     this._port = port || 8080
     this._server = `${this._host}:${this._port}`
@@ -48,9 +54,14 @@ export class YellowJacketServer {
     this._socketTimeout = socket.timeout || 2000
     this._secureSocket = Boolean(socket.secure)
     this._running = {}
-    this._signingKey = token.secret || token.privateKey ? fs.readFileSync(token.privateKey) : SIGNING_KEY
+
+    // token settings and creation
+    this._signingKey = token.secret || SIGNING_KEY
     this._signingAlg = token.algorithm || SIGNING_ALG
-    this._token = jwt.sign({ host: this._host, port: this._port }, this._signingKey, this._signingAlg)
+    if (_.isString(token.privateKey)) this._signingKey = fs.readFileSync(path.resolve(token.privateKey))
+    let tokenPayload = { host: this._host, port: this._port }
+    let tokenOptions = { algorithm: this._signingAlg }
+    this._token = jwt.sign(tokenPayload, this._signingKey, tokenOptions)
 
     // get the global settings
     return this.queries.getSettings()
@@ -87,7 +98,7 @@ export class YellowJacketServer {
       })
       .catch((error) => {
         this.log.fatal({ server: this._server, error }, 'the server failed to start')
-        throw err
+        throw error
       })
   }
 
@@ -139,6 +150,6 @@ export class YellowJacketServer {
   }
 }
 
-export default function (backend, actions, scheduler, options) {
-  return new YellowJacketServer(backend, actions, scheduler, options)
+export default function (backend, options) {
+  return new YellowJacketServer(backend, options)
 }

@@ -2,16 +2,17 @@ import _ from 'lodash'
 import { ONE_SECOND_IN_MS } from '../../common/const'
 
 export default function checkIn (first) {
-  this.log.trace(first ? `first check in for ${this._server}` : `checking in ${this._server}`)
+  let msg = first ? `first check in for ${this._server}` : `checking in ${this._server}`
+  this.log.trace({ server: this._server }, msg)
 
   // run the checkIn on an interval
   setTimeout(() => checkIn.call(this), this._checkinFrequency * ONE_SECOND_IN_MS)
 
-  return this._lib.Runner(`
+  return this.lib.YJRunner(`
   mutation Mutation {
     checkinRunnerNode (
-      id: "${this._id}",
-      state: ${this._state},
+      id: "${this.id}",
+      state: ${this.state},
       offlineAfter: ${this._offlineAfter}
     )
   }`)

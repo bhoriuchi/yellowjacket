@@ -7,6 +7,7 @@ export const LOG_LEVELS = {
   warn: 40,
   info: 30,
   debug: 20,
+  trace: 10,
   silent: -1
 }
 
@@ -34,7 +35,7 @@ export const EVENTS = {
 
 // defaults for JWT
 export const SIGNING_KEY = 'twothingsareinfinitetheuniverseandhumanstupidityandimnotsureabouttheuniverse'
-export const SIGNING_ALG = 'RS256'
+export const SIGNING_ALG = 'none'
 
 export default {
   ONE_SECOND_IN_MS,

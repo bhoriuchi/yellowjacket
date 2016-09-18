@@ -3,7 +3,7 @@ import RunnerQueueStateEnum from '../../graphql/types/RunnerQueueStateEnum'
 let { UNSCHEDULED } = RunnerQueueStateEnum
 
 export default function createQueue (action, context) {
-  return this._lib.YJRunner(`mutation Mutation 
+  return this.lib.YJRunner(`mutation Mutation 
     {
       createRunnerQueue (
         action: "${action}",

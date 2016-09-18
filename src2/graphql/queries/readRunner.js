@@ -1,7 +1,7 @@
 import factory from 'graphql-factory'
 
 export default function readRunner (args) {
-  return this._lib.YJRunner(`
+  return this.lib.YJRunner(`
   {
     readRunnerNode (${factory.utils.toObjectString(args, { noOuterBraces: true })})
     {

@@ -4,7 +4,7 @@ export default function getSelf () {
 
   this.log.trace({ server: this._server }, `getting self`)
 
-  return this._lib.YJRunner(`
+  return this.lib.YJRunner(`
     {
       readRunnerNode (
         host: "${this._host}",

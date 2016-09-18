@@ -1,5 +1,5 @@
 export default function readRunner (id) {
-  return this._lib.YJRunner(`mutation Mutation
+  return this.lib.YJRunner(`mutation Mutation
   {
     deleteRunnerQueue (id: "${id}")
   }`)

@@ -1,7 +1,7 @@
 import factory from 'graphql-factory'
 
 export default function readRunner (args) {
-  return this._lib.YJRunner(`mutation Mutation
+  return this.lib.YJRunner(`mutation Mutation
   {
     updateRunnerQueue (${factory.utils.toObjectString(args, { noOuterBraces: true })})
     {

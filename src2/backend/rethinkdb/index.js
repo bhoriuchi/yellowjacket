@@ -1,3 +1,4 @@
+import _ from 'lodash'
 import factory from 'graphql-factory'
 import { GraphQLFactoryRethinkDBBackend } from 'graphql-factory-backend/rethinkdb'
 import { mergeConfig } from '../util'
@@ -6,8 +7,15 @@ import cmd from '../../cmd/index'
 
 export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend {
   constructor (namespace, graphql, r, config = {}, connection) {
-    super(namespace, graphql, factory, r, mergeConfig(config), connection)
+    config = mergeConfig(config)
+    super(namespace, graphql, factory, r, config, connection)
     this.type = 'YellowjacketRethinkDBBackend'
+
+    // add actions and scheduler and logger
+    let { actions, scheduler, logger } = config
+    this.actions = actions
+    if (_.isFunction(scheduler)) this.scheduler = scheduler
+    this.logger = logger
 
     // add custom functions
     this.addFunctions(functions)

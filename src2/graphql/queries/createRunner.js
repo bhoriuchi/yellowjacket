@@ -2,7 +2,7 @@ import _ from 'lodash'
 import factory from 'graphql-factory'
 
 export default function createRunner (args) {
-  return this._lib.YJRunner(`mutation Mutation
+  return this.lib.YJRunner(`mutation Mutation
   {
     createRunnerNode (${factory.utils.toObjectString(args, { noOuterBraces: true })})
     {

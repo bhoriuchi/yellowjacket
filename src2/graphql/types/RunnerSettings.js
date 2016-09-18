@@ -20,7 +20,7 @@ export default {
     schema: 'YJRunner',
     collection: 'runner_settings',
     query: {
-      read: { resolve: 'readRunnerSettings' }
+      read: { type: 'RunnerSettings', resolve: 'readRunnerSettings' }
     },
     mutation: {
       create: { resolve: 'createRunnerSettings' },

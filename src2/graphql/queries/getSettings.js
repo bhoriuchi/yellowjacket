@@ -4,7 +4,7 @@ export default function getSettings () {
 
   this.log.trace({ server: this._server }, `getting global settings`)
 
-  return this._lib.YJRunner(`
+  return this.lib.YJRunner(`
     {
       readRunnerSettings {
         appName,
