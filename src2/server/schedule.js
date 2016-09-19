@@ -1,16 +1,19 @@
 import _ from 'lodash'
+import factory from 'graphql-factory'
 import { EVENTS } from '../common/const'
 import RunnerNodeStateEnum from '../graphql/types/RunnerNodeStateEnum'
 import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
 let { values: { ONLINE } } = RunnerNodeStateEnum
 let { values: { SCHEDULED} } = RunnerQueueStateEnum
+let { utils: { Enum } } = factory
 
 let { STATUS, SCHEDULE_ERROR, SCHEDULE_ACCEPT, RUN, OK } = EVENTS
 let source = 'server/schedule'
 
 // gets the next runner in the list and verifies that it is online
 export function getNextRunner (list, success, fail, idx = 0) {
-  if (idx >= nodeList.length) {
+  this.log.trace({ server: this._server, runner: _.get(list, `[${idx}]`) }, 'checking runner')
+  if (idx >= list.length) {
     if (this.state === ONLINE) return success(this.info())
     else return fail(new Error('No runners meet the run requirements'))
   }
@@ -37,11 +40,13 @@ export function getNextRunner (list, success, fail, idx = 0) {
 export function checkRunners (context, queue, list, socket) {
   let check = new Promise((resolve, reject) => getNextRunner.call(this, list, resolve, reject))
 
+  this.log.trace({ server: this._server }, 'checking runners for first online')
+
   return check.then((runner) => {
     return this.queries.updateQueue({
       id: queue.id,
       runner: runner.id,
-      state: SCHEDULED
+      state: Enum(SCHEDULED)
     })
       .then(() => {
         this.log.debug({ server: this._server, runner: runner.id, queue: queue.id }, 'successfully scheduled queue')
@@ -71,30 +76,40 @@ export function checkRunners (context, queue, list, socket) {
 // schedule a runner
 export function setSchedule (action, context, queue, runners, socket) {
   return new Promise((resolve, reject) => {
-    return this.scheduler(this, runners, queue, (error, list) => {
+    try {
+      return this.scheduler(this, runners, queue, (error, list) => {
+        // check for error
+        if (error) {
+          this.log.error({ error, source, server: this._server, method: 'setSchedule'}, 'failed to set schedule')
+          if (socket) socket.emit(SCHEDULE_ERROR, `failed to schedule ${action} because ${error}`)
+          return reject(error)
+        }
 
-      // check for error
-      if (error) {
-        this.log.error({ error, source, server: this._server, method: 'setSchedule'}, 'failed to set schedule')
-        if (socket) socket.emit(SCHEDULE_ERROR, `failed to schedule ${action} because ${error}`)
-        return reject(error)
-      }
+        // check for runners, if none, try self
+        if (!_.isArray(list) || !list.length) {
+          this.log.debug({ server: this._server, method: 'setSchedule'}, 'no online runners, trying self')
+          if (this.state !== ONLINE) {
+            return reject(new Error('No acceptable runners were found'))
+          }
+          list = [ this.info() ]
+        }
 
-      // check for runners, if none, try self
-      if (!_.isArray(list) || !list.length) {
-        if (this.state !== ONLINE) return reject(new Error('No acceptable runners were found'))
-        list = [ this.info() ]
-      }
+        this.log.trace({ server: this._server, method: 'setSchedule'}, 'a list of runners was obtained')
 
-      // check each runner in the list until one that is ONLINE is found
-      return resolve(checkRunners.call(this, context, queue, list, socket))
-    })
+        // check each runner in the list until one that is ONLINE is found
+        checkRunners.call(this, context, queue, list, socket)
+        return resolve()
+      })
+    } catch (error) {
+      this.log.error({ server: this._server, method: 'setSchedule', error }, 'failed to schedule')
+      reject(error)
+    }
   })
 }
 
 // get a list of online runners
 export function getOnlineRunner (action, context, queue, socket) {
-  return this.queries.readRunner({ state: ONLINE })
+  return this.queries.readRunner({ state: Enum(ONLINE) })
     .then((runners) => {
       this.log.debug({ server: this._server, source}, 'got online runners')
       return setSchedule.call(this, action, context, queue, runners, socket)

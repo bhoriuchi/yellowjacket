@@ -1,7 +1,8 @@
 export default {
   fields: {
     id: {
-      type: 'String'
+      type: 'String',
+      primary: true
     },
     appName: {
       description: 'Name used for application logs',

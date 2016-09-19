@@ -1,6 +1,7 @@
+import _ from 'lodash'
 import factory from 'graphql-factory'
-import RunnerQueueStateEnum from '../../graphql/types/RunnerQueueStateEnum'
-let { UNSCHEDULED } = RunnerQueueStateEnum
+import RunnerQueueStateEnum from '../types/RunnerQueueStateEnum'
+let { values: { UNSCHEDULED } } = RunnerQueueStateEnum
 
 export default function createQueue (action, context) {
   return this.lib.YJRunner(`mutation Mutation 

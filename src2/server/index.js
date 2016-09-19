@@ -41,7 +41,7 @@ export class YellowJacketServer {
     this.backend = backend
     this.actions = backend.actions
     this.options = options
-    this.scheduler = backend.scheduler || function () { return [ this.info() ] }
+    this.scheduler = backend.scheduler || this.defaultScheduler
     this.queries = queries(this)
     this.lib = backend.lib
     this._host = host
@@ -130,9 +130,18 @@ export class YellowJacketServer {
     }
   }
 
-  disconnectSocket (socket) {
-    socket.emit(DISCONNECT)
-    socket.disconnect(0)
+  disconnectSocket (host, port) {
+    this.log.debug({ server: this._server, target: `${host}:${port}`}, 'disconnecting socket')
+    this.emit(host, port, DISCONNECT, undefined, OK, () => true, 500)
+    let s = _.get(this._sockets, `["${host}:${port}"].socket`)
+    if (s) {
+      this._sockets[`${host}:${port}`].socket.disconnect(0)
+      delete this._sockets[`${host}:${port}`]
+    }
+  }
+
+  defaultScheduler (backend, runners, queue, done) {
+    return done(null, [ this.info() ] )
   }
 
   verify (token) {

@@ -1,6 +1,7 @@
+import _ from 'lodash'
 import factory from 'graphql-factory'
 
-export default function readRunner (args) {
+export default function updateQueue (args) {
   return this.lib.YJRunner(`mutation Mutation
   {
     updateRunnerQueue (${factory.utils.toObjectString(args, { noOuterBraces: true })})

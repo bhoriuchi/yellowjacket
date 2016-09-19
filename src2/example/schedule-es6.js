@@ -8,7 +8,13 @@ let backend = RethinkDBBackend('_yj', graphql, rethinkdbdash(), {})
 backend.cmd({
   target: 'runner',
   action: 'schedule',
-  options: { action: 'print', context: {} }
+  options: {
+    host: 'localhost',
+    port: 8091,
+    action: 'print',
+    context: {},
+    loglevel: 'trace'
+  }
 })
 .then((result) => {
   console.log(result)

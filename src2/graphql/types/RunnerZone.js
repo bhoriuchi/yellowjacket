@@ -1,7 +1,8 @@
 export default {
   fields: {
     id: {
-      type: 'String'
+      type: 'String',
+      primary: true
     },
     name: {
       description: 'Zone name',

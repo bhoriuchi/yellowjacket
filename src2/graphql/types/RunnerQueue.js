@@ -1,7 +1,8 @@
 export default {
   fields: {
     id: {
-      type: 'String'
+      type: 'String',
+      primary: true
     },
     created: {
       description: 'When the run was created',
@@ -38,14 +39,14 @@ export default {
     mutation: {
       create: {
         before (source, args, context, info) {
-          let { backend: { q } } = this
+          let { q } = this
           args.created = q.now().value()
           args.updated = q.now().value()
         }
       },
       update: {
         before (source, args, context, info) {
-          let { backend: { q } } = this
+          let { q } = this
           args.updated = q.now().value()
         }
       }

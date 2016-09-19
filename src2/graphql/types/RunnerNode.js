@@ -4,7 +4,8 @@ let { OFFLINE, MAINTENANCE } = StateEnum.values
 export default {
   fields: {
     id: {
-      type: 'String'
+      type: 'String',
+      primary: true
     },
     host: {
       description: 'Host name or IP address for the runner',

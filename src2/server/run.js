@@ -1,10 +1,12 @@
 import _ from 'lodash'
+import factory from 'graphql-factory'
 import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
 let { values: { SCHEDULED, RUNNING, FAILED, COMPLETE } } = RunnerQueueStateEnum
+let { utils: { Enum } } = factory
 
 // marks failed tasks and logs the error
 export function setTaskFailed (id, error) {
-  return this.queries.updateQueue({ id, state: FAILED })
+  return this.queries.updateQueue({ id, state: Enum(FAILED) })
     .then(() => {
       throw error instanceof Error ? error : new Error(error)
     })
@@ -40,7 +42,7 @@ export function runTask (task) {
   let { id, action, context } = task
   if (!_.has(this.actions, action)) return this.log.error({ server: this._server, action }, 'action is not valid')
 
-  return this.queries.updateQueue({ id, state: RUNNING })
+  return this.queries.updateQueue({ id, state: Enum(RUNNING) })
     .then(() => {
       this._running[id] = { action, started: new Date() }
       let taskRun = this.actions[action](this, context, doneTask.call(this, id))
@@ -58,10 +60,7 @@ export function runTask (task) {
 
 // gets the tasks assigned to this runner
 export function getAssigned () {
-  return this.queries.readQueue({
-    runner: this.id,
-    state: SCHEDULED
-  })
+  return this.queries.readQueue({ runner: this.id, state: Enum(SCHEDULED) })
     .then((tasks) => {
       this.log.trace({ server: this._server }, 'acquired tasks')
       _.forEach(tasks, (task) => runTask.call(this, task))
@@ -73,9 +72,7 @@ export function getAssigned () {
 
 // checks for assigned tasks and attempts to run them
 export default function run (socket) {
-  return () => {
-    this.log.trace({ server: this._server }, 'checking queue')
-    if (socket) socket.emit(OK)
-    return getAssigned.call(this)
-  }
+  this.log.trace({ server: this._server }, 'checking queue')
+  if (socket) socket.emit(OK)
+  return getAssigned.call(this)
 }

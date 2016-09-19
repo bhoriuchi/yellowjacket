@@ -14,9 +14,11 @@ export class YellowjacketClient {
     this.log = backend.logger || basicLogger.call(this)
 
     socket = socket || {}
+    this._backend = backend
     this._emitter = new Events.EventEmitter()
     this._host = host || 'localhost'
     this._port = port || 1
+    this._server = `${this._host}:${this._port}`
     this._tokenStore = tokenStore(this._host, this._port, token)
     this._token = this._tokenStore.token
     this._sockets = {}
@@ -28,9 +30,14 @@ export class YellowjacketClient {
     return emitMethod.call(this, host, port, event, payload, listener, cb, timeout)
   }
 
-  disconnect (host, port) {
+  disconnectSocket (host, port) {
+    this.log.debug({ server: this._server, target: `${host}:${port}`}, 'disconnecting socket')
     this.emit(host, port, DISCONNECT, undefined, OK, () => true, 500)
-    delete this._sockets[`${host}:${port}`]
+    let s = _.get(this._sockets, `["${host}:${port}"].socket`)
+    if (s) {
+      this._sockets[`${host}:${port}`].socket.disconnect(0)
+      delete this._sockets[`${host}:${port}`]
+    }
   }
 }
 
