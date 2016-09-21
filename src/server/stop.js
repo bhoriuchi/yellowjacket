@@ -1,13 +1,14 @@
 import _ from 'lodash'
-import { OFFLINE } from './common'
-import { EVENTS } from './const'
+import RunnerNodeStateEnum from '../graphql/types/RunnerNodeStateEnum'
+import { EVENTS } from '../common/const'
 let { OK } = EVENTS
+let { values: { OFFLINE } } = RunnerNodeStateEnum
 
 export function forceStop (socket) {
   // send an ok response to cleanly exit
   // but also set a timeout for 5 seconds to ensure the process exits
-  socket.emit(OK)
-  socket.on(OK, () => process.exit())
+  if (socket) socket.emit(OK)
+  if (socket) socket.on(OK, () => process.exit())
   setTimeout(() => process.exit(), 5000)
 }
 
@@ -20,7 +21,7 @@ export function processStop (socket, options, count = 0) {
   return forceStop(socket)
 }
 
-export function stop (socket, options = {}) {
+export default function stop (options = {}, socket) {
   this.logInfo('Server stop requested')
   options.maxWait = isNaN(options.maxWait) ? 30 : Math.round(Number(options.maxWait))
 
@@ -28,9 +29,7 @@ export function stop (socket, options = {}) {
   this.state = OFFLINE
 
   // check in to update the database
-  return this.checkin()
+  return this.queries.checkIn()
     .then(() => processStop.call(this, socket, options))
     .catch(() => processStop.call(this, socket, options))
 }
-
-export default stop

@@ -1,239 +1,155 @@
 import _ from 'lodash'
-import SocketClient from 'socket.io-client'
-import QueueState from '../graphql/types/RunnerQueueStateEnum'
-import RunnerState from '../graphql/types/RunnerNodeStateEnum'
 import factory from 'graphql-factory'
-import { EVENTS } from './const'
-let source = 'server/schedule.js'
-let { SCHEDULED, UNSCHEDULED } = QueueState.values
-let { ONLINE } = RunnerState.values
-let {
-  CONNECTED,
-  CONNECT_ERROR,
-  CONNECT_TIMEOUT,
-  DISCONNECT,
-  STATUS,
-  SCHEDULE_ERROR,
-  SCHEDULE_ACCEPT,
-  RUN,
-  OK
-} = EVENTS
+import { EVENTS } from '../common/const'
+import RunnerNodeStateEnum from '../graphql/types/RunnerNodeStateEnum'
+import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
+let { values: { ONLINE } } = RunnerNodeStateEnum
+let { values: { SCHEDULED} } = RunnerQueueStateEnum
+let { utils: { Enum } } = factory
 
-// cleans up socket connection
-export function disconnectSocket (socket) {
-  socket.emit(DISCONNECT)
-  socket.disconnect(0)
-  return true
-}
+let { STATUS, SCHEDULE_ERROR, SCHEDULE_ACCEPT, RUN, OK } = EVENTS
+let source = 'server/schedule'
 
-/*
- * Sends a message and then disconnects after response or error
- */
-export function emitOnce (host, port, evt, listeners, onError = () => false, timeout = 2000) {
-  let disconnected = false
-  let socket = SocketClient(`http://${host}:${port}`, { timeout })
-
-  socket.on(CONNECTED, () => socket.emit(evt))
-
-  _.forEach(listeners, (fn, e) => {
-    socket.on(e, (data) => {
-      disconnected = disconnectSocket(socket)
-      return fn(data)
-    })
-  })
-
-  socket.on(CONNECT_ERROR, () => {
-    if (!disconnected) {
-      disconnected = disconnectSocket(socket)
-      return onError()
-    }
-  })
-  socket.on(CONNECT_TIMEOUT, () => {
-    if (!disconnected) {
-      disconnected = disconnectSocket(socket)
-      return onError()
-    }
-  })
-}
-
-
-/*
- * Loops through each node in the node list and determines if it is reachable
- */
-export function getNextRunner (nodeList, success, fail, idx = 0) {
-  if (idx >= nodeList.length) {
-    if (this._state === ONLINE) return success(this.info())
+// gets the next runner in the list and verifies that it is online
+export function getNextRunner (list, success, fail, idx = 0) {
+  this.log.trace({ server: this._server, runner: _.get(list, `[${idx}]`) }, 'checking runner')
+  if (idx >= list.length) {
+    if (this.state === ONLINE) return success(this.info())
     else return fail(new Error('No runners meet the run requirements'))
   }
-  let node = nodeList[idx]
+  let runner = list[idx]
   idx++
-  if (node.id === this._id && this._state === ONLINE) return success(node)
-  if (!node.host || !node.port) return getNextRunner.call(this, nodeList, success, fail, idx)
+  if (runner.id === this.id && this.state === ONLINE) return success(runner)
+  if (!runner.host || !runner.port) return getNextRunner.call(this, list, success, fail, idx)
 
-  return emitOnce(
-    node.host,
-    node.port,
+  return this.emit(
+    runner.host,
+    runner.port,
     STATUS,
+    undefined,
     {
-      [STATUS]: (data) => {
-        if (data.state === ONLINE) return resolve(data)
-        else return getNextRunner.call(this, nodeList, success, fail, idx)
+      [STATUS]: (info) => {
+        if (_.get(info, 'state') !== ONLINE) return getNextRunner.call(this, list, success, fail, idx)
       }
     },
-    () => getNextRunner.call(this, nodeList, success, fail, idx)
+    () => getNextRunner.call(this, list, success, fail, idx)
   )
 }
 
-/*
- * Entry point for checking online runners
- */
-export function checkRunners (nodeList) {
-  return new Promise((resolve, reject) => getNextRunner.call(this, nodeList, resolve, reject))
-}
+// looks through each runner until it finds one that is online and schedules it
+export function checkRunners (context, queue, list, socket) {
+  let check = new Promise((resolve, reject) => getNextRunner.call(this, list, resolve, reject))
 
-/*
- * Assigns task to a runner
- */
-export function setSchedule (socket, action, context, nodes, queue) {
-  return new Promise((resolve, reject) => {
-    return this._scheduler(this, nodes, queue, (err, nodeList) => {
-      if (err) {
-        this.logDebug('Failed to schedule', {
-          method: 'schedule',
-          errors: err.message || err,
-          stack: err.stack,
-          action,
-          marker: 3,
-          source
-        })
-        socket.emit(SCHEDULE_ERROR, `failed to schedule ${action} because ${err}`)
-        return reject(err)
-      }
+  this.log.trace({ server: this._server }, 'checking runners for first online')
 
-      // fallback to self if no nodes
-      if (!_.isArray(nodeList)) {
-        if (this._state !== ONLINE) return reject(new Error('No acceptable nodes were found'))
-        nodeList = [this.info()]
-      }
-
-      // attempt to ping the runners
-      return resolve(checkRunners.call(this, nodeList)
-        .then((node) => {
-          return this._lib.Runner(`
-            mutation Mutation {
-              updateQueue (
-                id: "${queue.id}",
-                runner: "${node.id}",
-                state: ${SCHEDULED}
-              ) { id }
-            }
-          `)
-            .then((result) => {
-              let queue = _.get(result, 'data.updateQueue', {})
-              if (result.errors || !queue.id) throw new Error('Failed to update queue')
-              this.logInfo('Successfully scheduled queue', { runner: node.id, queue: queue.id })
-              return emitOnce(node.host, node.port, RUN, { [OK]: () => disconnectSocket(socket) })
-            })
-            .catch((err) => {
-              this.logDebug('Failed to schedule', {
-                method: 'schedule',
-                errors: err.message || err,
-                stack: err.stack,
-                action,
-                marker: 4,
-                source
-              })
-            })
-        }))
+  return check.then((runner) => {
+    return this.queries.updateQueue({
+      id: queue.id,
+      runner: runner.id,
+      state: Enum(SCHEDULED)
     })
+      .then(() => {
+        this.log.debug({ server: this._server, runner: runner.id, queue: queue.id }, 'successfully scheduled queue')
+        this.emit(
+          runner.host,
+          runner.port,
+          RUN,
+          undefined,
+          {
+            [OK]: () => {
+              let target = `${runner.host}:${runner.port}`
+              this.log.trace({ server: this._server, target }, 'successfully signaled run')
+            }
+          },
+          () => {
+            this.log.warn({ server: this._server, target: `${runner.host}:${runner.port}`}, 'run signal failed')
+          }
+        )
+      })
+      .catch((error) => {
+        this.log.debug({ error, server: this._server, target: `${runner.host}:${runner.port}`}, 'failed to signal run')
+      })
   })
 }
 
-/*
- * Queries runner document for online runners and then calls
- * function to check node directly via socket status message
- */
-export function getOnlineRunner (socket, action, context, queue) {
-  // get nodes that appear to be online
-  return this._lib.Runner(`{
-            readRunner (state: ${ONLINE}) { id, host, port, zone { id, name, description, metadata }, state, metadata }
-          }`)
-    .then((result) => {
-      let nodes = _.get(result, 'data.readRunner')
-      if (result.errors || !nodes) {
-        this.logDebug('Failed to schedule', {
-          method: 'schedule',
-          errors: result.errors,
-          action,
-          marker: 2,
-          source
-        })
-        return socket.emit(SCHEDULE_ERROR, `failed to schedule ${action}`)
-      }
-      return setSchedule.call(this, socket, action, context, nodes, queue)
-    })
-    .catch((err) => {
-      this.logDebug('Failed to schedule', {
-        method: 'schedule',
-        errors: err.message || err,
-        stack: err.stack,
-        action,
-        marker: 5,
-        source
+
+// schedule a runner
+export function setSchedule (action, context, queue, runners, socket) {
+  return new Promise((resolve, reject) => {
+    try {
+      return this.scheduler(this, runners, queue, (error, list) => {
+        // check for error
+        if (error) {
+          this.log.error({ error, source, server: this._server, method: 'setSchedule'}, 'failed to set schedule')
+          if (socket) socket.emit(SCHEDULE_ERROR, `failed to schedule ${action} because ${error}`)
+          return reject(error)
+        }
+
+        // check for runners, if none, try self
+        if (!_.isArray(list) || !list.length) {
+          this.log.debug({ server: this._server, method: 'setSchedule'}, 'no online runners, trying self')
+          if (this.state !== ONLINE) {
+            return reject(new Error('No acceptable runners were found'))
+          }
+          list = [ this.info() ]
+        }
+
+        this.log.trace({ server: this._server, method: 'setSchedule'}, 'a list of runners was obtained')
+
+        // check each runner in the list until one that is ONLINE is found
+        checkRunners.call(this, context, queue, list, socket)
+        return resolve()
       })
+    } catch (error) {
+      this.log.error({ server: this._server, method: 'setSchedule', error }, 'failed to schedule')
+      reject(error)
+    }
+  })
+}
+
+// get a list of online runners
+export function getOnlineRunner (action, context, queue, socket) {
+  return this.queries.readRunner({ state: Enum(ONLINE) })
+    .then((runners) => {
+      this.log.debug({ server: this._server, source}, 'got online runners')
+      return setSchedule.call(this, action, context, queue, runners, socket)
+    })
+    .catch((error) => {
+      this.log.error({ error, source, server: this._server, method: 'getOnlineRunner' }, 'failed to create queue')
+      if (socket) return socket.emit(SCHEDULE_ERROR, `failed to schedule ${action}`)
     })
 }
 
-/*
- * Creates a queue document immediately after receiving it then tries to schedule it
- */
-export function createQueue (socket, action, context) {
-  return this._lib.Runner(`mutation Mutation {
-      createQueue (
-        action: "${action}",
-        context: ${factory.utils.toObjectString(context)},
-        state: ${UNSCHEDULED}
-      ) { id, action, context }  
-    }`)
-    .then((result) => {
-      let queue = _.get(result, 'data.createQueue')
-      if (result.errors || !queue) {
-        this.logDebug('Failed to schedule', {
-          method: 'schedule',
-          errors: result.errors,
-          action,
-          marker: 1,
-          source
-        })
-        return socket.emit('schedule.error', `failed to schedule ${action}`)
-      } else {
-        socket.emit(SCHEDULE_ACCEPT)
-        return getOnlineRunner.call(this, socket, action, context, queue)
-      }
+// Creates a queue document immediately after receiving it then tries to schedule it
+export function createQueue (action, context, socket) {
+  return this.queries.createQueue(action, context)
+    .then((queue) => {
+      this.log.debug({ server: this._server, source }, 'queue created')
+      if (socket) socket.emit(SCHEDULE_ACCEPT)
+      return getOnlineRunner.call(this, action, context, queue, socket)
     })
-    .catch((err) => {
-      this.logDebug('Failed to schedule', {
-        method: 'schedule',
-        errors: err.message || err,
-        stack: err.stack,
-        action,
-        marker: 4,
-        source
-      })
-      return socket.emit(SCHEDULE_ERROR, `failed to schedule ${action}`)
+    .catch((error) => {
+      this.log.error({ error, source, server: this._server, method: 'createQueue' }, 'failed to create queue')
+      if (socket) return socket.emit(SCHEDULE_ERROR, `failed to schedule ${action}`)
     })
 }
+
 
 // entry point for schedule request
-export function schedule (socket, payload) {
-  let { action, context } = payload
-  if (!_.has(this._actions, action)) {
-    socket.emit(SCHEDULE_ERROR, `${action} is not a known action`)
-    this.logError('Invalid action requested', { method: 'schedule', action, source })
-    return new Promise((resolve, reject) => reject('Invalid action requested'))
+export default function schedule (payload, socket) {
+  if (this.state !== ONLINE) {
+    this.log.debug({ server: this._server, state: this.state }, 'denied schedule request')
+    if (socket) socket.emit(SCHEDULE_ERROR, `runner in state ${this.state} and cannot schedule tasks`)
+    return Promise.reject(`runner in state ${this.state} and cannot schedule tasks`)
   }
-  return createQueue.call(this, socket, action, context)
-}
 
-// export the entry method
-export default schedule
+  let { action, context } = payload
+
+  // validate that the action is valid
+  if (!_.has(this.actions, action)) {
+    if (socket) socket.emit(SCHEDULE_ERROR, `${action} is not a known action`)
+    this.log.error({ action, source }, 'invalid action requested')
+    return Promise.reject('invalid action requested')
+  }
+  return createQueue.call(this, action, context, socket)
+}

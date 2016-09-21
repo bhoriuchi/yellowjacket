@@ -1,114 +1,159 @@
 import _ from 'lodash'
+import Events from 'events'
 import http from 'http'
 import SocketServer from 'socket.io'
-import bunyan from 'bunyan'
+import queries from '../graphql/queries/index'
+import { LOG_LEVELS, EVENTS } from '../common/const'
+import tokenStore from '../common/token'
+import basicLogger from '../common/basicLogger'
 import startListeners from './startListeners'
-import getSelf from './getSelf'
-import getSettings from './getSettings'
-import checkin from './checkin'
-import schedule from './schedule'
-import run from './run'
-import stop from './stop'
-import { LOG_LEVELS } from './common'
-import { OFFLINE, MAINTENANCE, ONLINE, getLogConfig } from './common'
+import scheduleMethod from './schedule'
+import maintenanceMethod from './maintenance'
+import runMethod from './run'
+import stopMethod from './stop'
+import emitMethod from '../common/emit'
+import { RunnerNodeStateEnum } from '../graphql/types/index'
+let { values: { ONLINE, MAINTENANCE } } = RunnerNodeStateEnum
+let { DISCONNECT } = EVENTS
 
-// server object constructor
-function Server (backend, lib, options, actions, scheduler) {
-  if (!(this instanceof Server)) return new Server(backend, lib, options, actions, scheduler)
-  backend.server = this
-  let { host, port, loglevel, logfile } = options
+export class YellowJacketServer {
+  constructor (backend, options = {}) {
+    let { host, port, token, socket } = options
+    socket = socket || { secure: false, timeout: 2000 }
+    // token = token || { secret: SIGNING_KEY, algorithm: SIGNING_ALG }
 
-  // check that the actions and scheduler are functions
-  if (!_.isObject(actions) || !_.isFunction(scheduler)) throw new Error('Invalid actions or scheduler')
+    this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info
+    this.log = backend.logger || basicLogger.call(this)
 
-  // store the server config
-  this._options = options
-  this._actions = actions
-  this._scheduler = scheduler
-  this._lib = lib
-  this._state = OFFLINE
-  this._host = host
-  this._port = Number(port)
-  this._server = `${this._host}:${this._port}`
-  this.running = {}
+    if (!backend) {
+      this.log.fatal({}, 'no backend provided')
+      throw new Error('No backend provided')
+    }
+    if (!_.isObject(backend.actions)) {
+      this.log.fatal({}, 'invalid actions')
+      throw new Error('Invalid actions')
+    }
+    if (!_.isString(host)) {
+      this.log.fatal({}, 'host is invalid or not specified')
+      throw new Error('host is invalid or not specified')
+    }
 
-  // get the global settings
-  this.getSettings()
-    .then((settings) => {
-      this._appName = settings.appName
-      this._checkinFrequency = settings.checkinFrequency
-      this._offlineAfterPolls = settings.offlineAfterPolls
-      this._offlineAfter = this._checkinFrequency * this._offlineAfterPolls
+    // store props
+    this.backend = backend
+    this.actions = backend.actions
+    this.options = options
+    this.scheduler = backend.scheduler || this.defaultScheduler
+    this.queries = queries(this)
+    this.lib = backend.lib
+    this._host = host
+    this._port = port || 8080
+    this._server = `${this._host}:${this._port}`
+    this._emitter = new Events.EventEmitter()
+    this._sockets = {}
+    this._socketTimeout = socket.timeout || 2000
+    this._secureSocket = Boolean(socket.secure)
+    this._running = {}
 
-      // set up logging
-      let logConfig = getLogConfig(this._appName, loglevel, logfile)
-      this._logger = logConfig.level !== LOG_LEVELS.silent ? bunyan.createLogger(logConfig) : false
+    // token settings and creation
+    this._tokenStore = tokenStore(this._host, this._port, token)
+    this._token = this._tokenStore.token
 
-      // log startup
-      this.logInfo(`Starting [${this._appName}] server on ${this._server}`)
+    // get the global settings
+    return this.queries.getSettings()
+      .then((settings) => {
+        this._appName = settings.appName
+        this._checkinFrequency = settings.checkinFrequency
+        this._offlineAfterPolls = settings.offlineAfterPolls
+        this._offlineAfter = this._checkinFrequency * this._offlineAfterPolls
 
-      // get the current nodes config
-      return this.getSelf()
-        .then((self) => {
-          this.id = this._id = self.id
-          this._state = self.state === MAINTENANCE ? MAINTENANCE : ONLINE
-          return this.checkin(true).then(() => {
+        this.log.info({ server: this._server }, 'starting server')
 
-            // set up socket.io server
-            this._app = http.createServer((req, res) => {
-              res.writeHead(200)
-              res.end(`${this._server}`)
-            })
-            this._app.listen(port)
-            this._io = new SocketServer(this._app)
+        // get self
+        return this.queries.getSelf()
+          .then((self) => {
+            this.id = self.id
+            this.state = self.state === MAINTENANCE ? MAINTENANCE : ONLINE
 
-            // if the state is online start the listeners
-            if (this._state === ONLINE) this.startListeners()
+            // check in
+            return this.queries.checkIn(true)
+              .then(() => {
+                // set up socket.io server
+                this._app = http.createServer((req, res) => {
+                  res.writeHead(200)
+                  res.end(`${this._server}`)
+                })
+                this._app.listen(port)
+                this._io = new SocketServer(this._app)
+
+                // if the state is online start the listeners
+                if (this.state === ONLINE) this.startListeners()
+              })
           })
-        })
-    })
-    .catch((err) => {
-      this._logger ? this.logFatal(err) : console.error(err)
-      process.exit()
-    })
-}
 
-// server methods
-Server.prototype.checkin = checkin
-Server.prototype.getSelf = getSelf
-Server.prototype.getSettings = getSettings
-Server.prototype.schedule = schedule
-Server.prototype.run = run
-Server.prototype.stop = stop
-Server.prototype.startListeners = startListeners
-Server.prototype.info = function () {
-  return {
-    id: this._id,
-    host: this._host,
-    port: this._port,
-    state: this._state,
-    running: this.running
+      })
+      .catch((error) => {
+        this.log.fatal({ server: this._server, error }, 'the server failed to start')
+        throw error
+      })
+  }
+
+  isPromise (obj) {
+    return _.isFunction(_.get(obj, 'then')) && _.isFunction(_.get(obj, 'catch'))
+  }
+
+  startListeners () {
+    startListeners.call(this)
+  }
+
+  emit (host, port, event, payload, listener, cb, timeout) {
+    return emitMethod.call(this, host, port, event, payload, listener, cb, timeout)
+  }
+
+  schedule (payload, socket) {
+    return scheduleMethod.call(this, payload, socket)
+  }
+
+  run (socket) {
+    return runMethod.call(this, socket)
+  }
+
+  stop (options, socket) {
+    return stopMethod.call(this, options, socket)
+  }
+
+  maintenance (enter, socket) {
+    return maintenanceMethod.call(this, enter, socket)
+  }
+
+  info () {
+    return {
+      id: this.id,
+      host: this._host,
+      port: this._port,
+      state: this.state,
+      running: _.keys(this._running).length
+    }
+  }
+
+  disconnectSocket (host, port) {
+    this.log.debug({ server: this._server, target: `${host}:${port}`}, 'disconnecting socket')
+    this.emit(host, port, DISCONNECT, undefined, OK, () => true, 500)
+    let s = _.get(this._sockets, `["${host}:${port}"].socket`)
+    if (s) {
+      this._sockets[`${host}:${port}`].socket.disconnect(0)
+      delete this._sockets[`${host}:${port}`]
+    }
+  }
+
+  defaultScheduler (backend, runners, queue, done) {
+    return done(null, [ this.info() ] )
+  }
+
+  verify (token) {
+    return this._tokenStore.verify(token)
   }
 }
 
-// logging prototypes
-Server.prototype.logFatal = function (msg, obj = {}) {
-  if (this._logger) this._logger.fatal(_.merge(obj, { server: this._server }), msg)
+export default function (backend, options) {
+  return new YellowJacketServer(backend, options)
 }
-Server.prototype.logError = function (msg, obj = {}) {
-  if (this._logger) this._logger.error(_.merge(obj, { server: this._server }), msg)
-}
-Server.prototype.logWarn = function (msg, obj = {}) {
-  if (this._logger) this._logger.warn(_.merge(obj, { server: this._server }), msg)
-}
-Server.prototype.logInfo = function (msg, obj = {}) {
-  if (this._logger) this._logger.info(_.merge(obj, { server: this._server }), msg)
-}
-Server.prototype.logDebug = function (msg, obj = {}) {
-  if (this._logger) this._logger.debug(_.merge(obj, { server: this._server }), msg)
-}
-Server.prototype.logTrace = function (msg, obj = {}) {
-  if (this._logger) this._logger.trace(_.merge(obj, { server: this._server }), msg)
-}
-
-export default Server

@@ -1,7 +1,8 @@
 export default {
   fields: {
     id: {
-      type: 'String'
+      type: 'String',
+      primary: true
     },
     created: {
       description: 'When the run was created',
@@ -30,6 +31,25 @@ export default {
     context: {
       description: 'Action context',
       type: 'FactoryJSON'
+    }
+  },
+  _backend: {
+    schema: 'YJRunner',
+    collection: 'runner_queue',
+    mutation: {
+      create: {
+        before (source, args, context, info) {
+          let { q } = this
+          args.created = q.now().value()
+          args.updated = q.now().value()
+        }
+      },
+      update: {
+        before (source, args, context, info) {
+          let { q } = this
+          args.updated = q.now().value()
+        }
+      }
     }
   }
 }

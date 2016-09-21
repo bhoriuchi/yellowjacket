@@ -1,62 +1,37 @@
 import _ from 'lodash'
-import QueueState from '../graphql/types/RunnerQueueStateEnum'
-import { EVENTS } from './const'
-import { expandGQLErrors } from './common'
-let { SCHEDULED, RUNNING, FAILED, COMPLETE } = QueueState.values
-let { OK } = EVENTS
-let source = 'server/run.js'
+import factory from 'graphql-factory'
+import RunnerNodeStateEnum from '../graphql/types/RunnerNodeStateEnum'
+import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
+let { values: { ONLINE } } = RunnerNodeStateEnum
+let { values: { SCHEDULED, RUNNING, FAILED, COMPLETE } } = RunnerQueueStateEnum
+let { utils: { Enum } } = factory
 
+// marks failed tasks and logs the error
 export function setTaskFailed (id, error) {
-  return this._lib.Runner(`mutation Mutation {
-    updateQueue (
-      id: "${id}",
-      state: ${FAILED}
-    ) { id }
-  }`)
+  return this.queries.updateQueue({ id, state: Enum(FAILED) })
     .then(() => {
       throw error instanceof Error ? error : new Error(error)
     })
-    .catch((err) => {
-      this.logDebug('Run failed', {
-        method: 'setTaskFailed',
-        errors: err.message || err,
-        stack: err.stack,
-        marker: 3,
-        source,
-        runner: this._id,
-        queue: id
-      })
+    .catch((error) => {
+      this.log.error({ server: this._server, error, task: id }, 'task failed')
     })
 }
 
+// removes the task on successful completion
 export function setTaskComplete (id, data) {
-  return this._lib.Runner(`mutation Mutation { deleteQueue (id: "${id}") }`)
+  return this.queries.deleteQueue(id)
     .then(() => {
-      this.logDebug('Task completed successfully', {
-        method: 'run',
-        runData: data,
-        marker: 4,
-        source,
-        runner: this._id,
-        queue: id
-      })
+      this.log.debug({ server: this._server, task: id, runData: data }, 'task completed successfully')
     })
-    .catch((err) => {
-      this.logDebug('Complete task failed', {
-        method: 'run',
-        errors: err.message || err,
-        stack: err.stack,
-        marker: 5,
-        source,
-        runner: this._id,
-        queue: id
-      })
+    .catch((error) => {
+      this.log.error({ server: this._server, error }, 'failed to set task complete')
     })
 }
 
+// returns an error first callback that is called by the action when done
 export function doneTask (taskId) {
   return (err, status, data) => {
-    delete this.running[taskId]
+    delete this._running[taskId]
     status = _.includes([COMPLETE, FAILED], _.toUpper(status)) ? status : COMPLETE
     data = data || status
     if (err || status === FAILED) return setTaskFailed.call(this, taskId, err || data)
@@ -64,75 +39,48 @@ export function doneTask (taskId) {
   }
 }
 
+// runs the task/action
 export function runTask (task) {
   let { id, action, context } = task
-  if (!_.has(this._actions, action)) {
-    return this.logError('Requested action is not valid', { action, method: 'runTask', source })
-  }
-  return this._lib.Runner(`mutation Mutation {
-    updateQueue (
-      id: "${id}",
-      state: ${RUNNING}
-    ) { id }
-  }`)
-    .then((result) => {
-      if (result.errors) throw new Error(expandGQLErrors(result.errors))
-      try {
-        this.running[id] = { action, started: new Date() }
-        let taskRun = this._actions[action](this, context, doneTask.bind(this)(id))
-        if (_.isFunction(_.get(taskRun, 'then')) && _.isFunction(_.get(taskRun, 'catch'))) {
-          return taskRun.then(() => true).catch((err) => {
-            throw (err instanceof Error) ? err : new Error(err)
-          })
-        }
-        return taskRun
-      } catch (err) {
-        throw err
+  if (!_.has(this.actions, action)) return this.log.error({ server: this._server, action }, 'action is not valid')
+
+  return this.queries.updateQueue({ id, state: Enum(RUNNING) })
+    .then(() => {
+      this._running[id] = { action, started: new Date() }
+      let taskRun = this.actions[action](this, context, doneTask.call(this, id))
+      if (this.isPromise(taskRun)) {
+        return taskRun.then(() => true).catch((error) => {
+          throw (error instanceof Error) ? error : new Error(error)
+        })
       }
+      return taskRun
     })
-    .catch((err) => {
-      delete this.running[id]
-      this.logDebug('Run failed', {
-        method: 'run',
-        errors: err.message || err,
-        stack: err.stack,
-        marker: 1,
-        source,
-        runner: this._id,
-        queue: id
-      })
+    .catch((error) => {
+      this.log.error({ server: this._server, action, error }, 'failed to update the queue')
     })
 }
 
+// gets the tasks assigned to this runner
 export function getAssigned () {
-  return this._lib.Runner(`{
-      readQueue (
-        runner: "${this._id}",
-        state: ${SCHEDULED}
-      ) { id, action, context }
-    }`)
-    .then((result) => {
-      let queue = _.get(result, 'data.readQueue')
-      if (result.errors) throw new Error(expandGQLErrors(result.errors))
-      _.forEach(queue, (task) => runTask.call(this, task))
+  return this.queries.readQueue({ runner: this.id, state: Enum(SCHEDULED) })
+    .then((tasks) => {
+      this.log.trace({ server: this._server }, 'acquired tasks')
+      _.forEach(tasks, (task) => runTask.call(this, task))
     })
-    .catch((err) => {
-      this.logDebug('Failed query run queue', {
-        method: 'run',
-        errors: err.message || err,
-        stack: err.stack,
-        marker: 2,
-        source
-      })
+    .catch((error) => {
+      this.log.debug({ server: this._server, error }, 'failed to get assigned tasks')
     })
 }
 
-export function run (socket) {
-  return () => {
-    this.logTrace('Checking queue')
-    if (socket) socket.emit(OK)
-    return getAssigned.call(this)
+// checks for assigned tasks and attempts to run them
+export default function run (socket) {
+  if (this.state !== ONLINE) {
+    this.log.debug({ server: this._server, state: this.state }, 'denied run request')
+    if (socket) socket.emit(SCHEDULE_ERROR, `runner in state ${this.state} and cannot run tasks`)
+    return Promise.reject(`runner in state ${this.state} and cannot run tasks`)
   }
-}
 
-export default run
+  this.log.trace({ server: this._server }, 'checking queue')
+  if (socket) socket.emit(OK)
+  return getAssigned.call(this)
+}

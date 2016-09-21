@@ -9,13 +9,11 @@
     "url": "git+https://github.com/bhoriuchi/yellowjacket.git"
   },
   "scripts": {
-    "build:copybrc": "cp build/.build.babelrc src/app/.babelrc && cp build/.build.babelrc src/backend/.babelrc && cp build/.build.babelrc src/graphql/.babelrc && cp build/.build.babelrc src/server/.babelrc",
-    "build:rmbrc": "rm -f src/app/.babelrc && rm -f src/backend/.babelrc && rm -f src/graphql/.babelrc && rm -f src/server/.babelrc",
+    "build:copybrc": "cp build/.build.babelrc src/backend/.babelrc && cp build/.build.babelrc src/graphql/.babelrc && cp build/.build.babelrc src/server/.babelrc && cp build/.build.babelrc src/server/.babelrc",
+    "build:rmbrc": "rm -f src/backend/.babelrc && rm -f src/graphql/.babelrc && rm -f src/server/.babelrc",
     "example": "node example/index.js --harmony",
-    "build:app": "npm run build:copybrc && rollup -c build/rollup.app.config.js && npm run build:rmbrc",
-    "build:install": "npm run build:copybrc && rollup -c build/rollup.install.config.js && npm run build:rmbrc",
     "build:backend": "npm run build:copybrc && rollup -c build/rollup.backend.config.js && npm run build:rmbrc",
-    "build": "npm run build:app && npm run build:backend && npm run build:install",
+    "build": "cp build/.build.babelrc src/.babelrc && rollup -c build/rollup.config.js && rm -f src/.babelrc",
     "test": "npm run build && mocha test/index.js",
     "copybe": "cp ../graphql-factory-backend/*.js node_modules/graphql-factory-backend/"
   },
