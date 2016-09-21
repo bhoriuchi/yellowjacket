@@ -1,10 +1,12 @@
 'use strict';
 
+Object.defineProperty(exports, '__esModule', { value: true });
+
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var _ = _interopDefault(require('lodash'));
 var factory = _interopDefault(require('graphql-factory'));
-var graphqlFactoryBackend_rethinkdb = require('graphql-factory-backend/rethinkdb');
+var graphqlFactoryBackend = require('graphql-factory-backend');
 var FactoryTypePlugin = _interopDefault(require('graphql-factory-types'));
 var Events = _interopDefault(require('events'));
 var http = _interopDefault(require('http'));
@@ -1747,15 +1749,18 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
   }
 
   return YellowjacketRethinkDBBackend;
-}(graphqlFactoryBackend_rethinkdb.GraphQLFactoryRethinkDBBackend);
+}(graphqlFactoryBackend.GraphQLFactoryRethinkDBBackend);
 
 // helper function to instantiate a new backend
 function rethinkdb (namespace, graphql, factory, r, config, connection) {
   return new YellowjacketRethinkDBBackend(namespace, graphql, factory, r, config, connection);
 }
 
-var backend = {
-  rethinkdb: rethinkdb
+var index = {
+  rethinkdb: rethinkdb,
+  YellowjacketRethinkDBBackend: YellowjacketRethinkDBBackend
 };
 
-module.exports = backend;
+exports.rethinkdb = rethinkdb;
+exports.YellowjacketRethinkDBBackend = YellowjacketRethinkDBBackend;
+exports['default'] = index;

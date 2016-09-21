@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import factory from 'graphql-factory'
-import { GraphQLFactoryRethinkDBBackend } from 'graphql-factory-backend/rethinkdb'
+import { GraphQLFactoryRethinkDBBackend } from 'graphql-factory-backend'
 import { mergeConfig } from '../util'
 import { functions, queries } from '../../graphql/index'
 import cmd from '../../cmd/index'
