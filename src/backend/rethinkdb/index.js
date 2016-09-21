@@ -33,6 +33,6 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
 }
 
 // helper function to instantiate a new backend
-export default function (namespace, graphql, factory, r, config, connection) {
-  return new YellowjacketRethinkDBBackend(namespace, graphql, factory, r, config, connection)
+export default function (namespace, graphql, r, config, connection) {
+  return new YellowjacketRethinkDBBackend(namespace, graphql, r, config, connection)
 }

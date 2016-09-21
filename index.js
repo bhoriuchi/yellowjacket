@@ -1752,8 +1752,8 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 }(graphqlFactoryBackend.GraphQLFactoryRethinkDBBackend);
 
 // helper function to instantiate a new backend
-function rethinkdb (namespace, graphql, factory, r, config, connection) {
-  return new YellowjacketRethinkDBBackend(namespace, graphql, factory, r, config, connection);
+function rethinkdb (namespace, graphql, r, config, connection) {
+  return new YellowjacketRethinkDBBackend(namespace, graphql, r, config, connection);
 }
 
 var index = {
