@@ -494,6 +494,14 @@ function mergeConfig() {
   return _.merge({}, config, { types: types, plugin: plugin });
 }
 
+var installData = {
+  RunnerSettings: [{
+    appName: 'YELLOWJACKET',
+    checkinFrequency: 30,
+    offlineAfterPolls: 1
+  }]
+};
+
 var classCallCheck = function (instance, Constructor) {
   if (!(instance instanceof Constructor)) {
     throw new TypeError("Cannot call a class as a function");
@@ -1501,7 +1509,9 @@ function installStore(options) {
   // if the data is a file path, get the data from the file
 
   data = _.isString(data) ? JSON.parse(fs.readFileSync(path.resolve(data))) : data;
-  return this.initAllStores(true, data);
+  this.addInstallData(data);
+
+  return this.initAllStores(true, this._installData);
 }
 
 function cmd(command) {
@@ -1735,6 +1745,9 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 
     if (_.isFunction(scheduler)) _this.scheduler = scheduler;
     _this.logger = logger;
+
+    // add install data
+    _this.addInstallData(installData);
 
     // add custom functions
     _this.addFunctions(functions);

@@ -7,7 +7,9 @@ export function installStore (options) {
 
   // if the data is a file path, get the data from the file
   data = _.isString(data) ? JSON.parse(fs.readFileSync(path.resolve(data))) : data
-  return this.initAllStores(true, data)
+  this.addInstallData(data)
+
+  return this.initAllStores(true, this._installData)
 }
 
 export default {

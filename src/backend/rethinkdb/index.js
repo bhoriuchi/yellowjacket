@@ -3,6 +3,7 @@ import factory from 'graphql-factory'
 import { GraphQLFactoryRethinkDBBackend } from 'graphql-factory-backend'
 import { mergeConfig } from '../util'
 import { functions, queries } from '../../graphql/index'
+import installData from '../installData'
 import cmd from '../../cmd/index'
 import cli from '../../cli/index'
 
@@ -19,6 +20,9 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
 
     if (_.isFunction(scheduler)) this.scheduler = scheduler
     this.logger = logger
+
+    // add install data
+    this.addInstallData(installData)
 
     // add custom functions
     this.addFunctions(functions)
