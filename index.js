@@ -1830,7 +1830,11 @@ function rethinkdb (namespace, graphql, r, config, connection) {
 
 var index = {
   rethinkdb: rethinkdb,
-  YellowjacketRethinkDBBackend: YellowjacketRethinkDBBackend
+  YellowjacketRethinkDBBackend: YellowjacketRethinkDBBackend,
+  client: YellowjacketClient$1,
+  YellowjacketClient: YellowjacketClient,
+  server: YellowJacketServer$1,
+  YellowjacketServer: YellowJacketServer$1
 };
 
 exports.rethinkdb = rethinkdb;
