@@ -11,10 +11,12 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
     config = mergeConfig(config)
     super(namespace, graphql, factory, r, config, connection)
     this.type = 'YellowjacketRethinkDBBackend'
+    this.actions = {}
 
     // add actions and scheduler and logger
     let { actions, scheduler, logger } = config
-    this.actions = actions
+    this.addActions(actions)
+
     if (_.isFunction(scheduler)) this.scheduler = scheduler
     this.logger = logger
 
@@ -29,6 +31,15 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
 
     // add the cli method
     this.cli = cli.bind(this)
+
+  }
+
+  addActions (actions) {
+    if (!_.isFunction(actions) && !_.isObject(actions)) return
+    // if actions is a function it takes the backend as its argument
+    // otherwise merge with the existing actions
+    actions = _.isFunction(actions) ? actions(this) : actions
+    this.actions = _.merge({}, this.actions, actions)
   }
 }
 

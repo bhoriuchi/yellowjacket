@@ -1723,6 +1723,7 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     var _this = possibleConstructorReturn(this, (YellowjacketRethinkDBBackend.__proto__ || Object.getPrototypeOf(YellowjacketRethinkDBBackend)).call(this, namespace, graphql, factory, r, config, connection));
 
     _this.type = 'YellowjacketRethinkDBBackend';
+    _this.actions = {};
 
     // add actions and scheduler and logger
     var _config = config;
@@ -1730,7 +1731,8 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     var scheduler = _config.scheduler;
     var logger = _config.logger;
 
-    _this.actions = actions;
+    _this.addActions(actions);
+
     if (_.isFunction(scheduler)) _this.scheduler = scheduler;
     _this.logger = logger;
 
@@ -1745,9 +1747,20 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 
     // add the cli method
     _this.cli = cli.bind(_this);
+
     return _this;
   }
 
+  createClass(YellowjacketRethinkDBBackend, [{
+    key: 'addActions',
+    value: function addActions(actions) {
+      if (!_.isFunction(actions) && !_.isObject(actions)) return;
+      // if actions is a function it takes the backend as its argument
+      // otherwise merge with the existing actions
+      actions = _.isFunction(actions) ? actions(this) : actions;
+      this.actions = _.merge({}, this.actions, actions);
+    }
+  }]);
   return YellowjacketRethinkDBBackend;
 }(graphqlFactoryBackend.GraphQLFactoryRethinkDBBackend);
 
