@@ -3,7 +3,7 @@ import { ONE_SECOND_IN_MS } from '../../common/const'
 
 export default function checkIn (first) {
   let msg = first ? `first check in for ${this._server}` : `checking in ${this._server}`
-  this.log.trace({ server: this._server }, msg)
+  this.log.trace({ server: this._server, state: this.state }, msg)
 
   // run the checkIn on an interval
   setTimeout(() => checkIn.call(this), this._checkinFrequency * ONE_SECOND_IN_MS)

@@ -24,6 +24,8 @@ export const EVENTS = {
   RUN: 'run',
   OK: 'ok',
   STOP: 'stop',
+  STOPPING: 'stopping',
+  STOPPING_ACK: 'stopping.acknowledge',
   STOP_ERROR: 'stop.error',
   RESTART: 'restart',
   RESTART_ERROR: 'restart.error',

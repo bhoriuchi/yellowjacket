@@ -57,7 +57,7 @@ export default function startListeners () {
         event.emit(RUN, socket)
       })
 
-      socket.on(STOP, (options) => {
+      socket.on(STOP, (options = {}) => {
         this.log.trace({ client, server: this._server, event: STOP }, 'received socket event')
         event.emit(STOP, { options, socket })
       })

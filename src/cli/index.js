@@ -1,18 +1,23 @@
 import getOptions from './options'
+import { YellowJacketServer } from '../server/index'
 
 export default function cli (config, parser) {
   let options = getOptions(config, parser)
   this.cmd(options)
     .then((result) => {
-      try {
-        console.log(JSON.stringify(result, null, '  '))
-      } catch (err) {
-        console.log(result)
+      if (!(result instanceof YellowJacketServer)) {
+        try {
+          console.log(JSON.stringify(result, null, '  '))
+        } catch (err) {
+          console.log(result)
+        }
+        process.exit()
       }
-      process.exit()
     })
     .catch((error) => {
-      console.error(error.message)
-      process.exit()
+      if (!(error instanceof YellowJacketServer)) {
+        console.error(error.message)
+        process.exit()
+      }
     })
 }

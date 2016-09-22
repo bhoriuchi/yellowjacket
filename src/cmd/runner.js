@@ -5,7 +5,7 @@ import YellowjacketClient from '../client/index'
 import { LOG_LEVELS, EVENTS } from '../common/const'
 let {
   OK, STOP, SCHEDULE, SCHEDULE_ACCEPT, SCHEDULE_ERROR, MAINTENANCE_ENTER, MAINTENANCE_EXIT, MAINTENANCE_ERROR,
-  MAINTENANCE_OK
+  MAINTENANCE_OK, STOPPING, STOPPING_ACK
 } = EVENTS
 
 export function listRunner (args) {
@@ -69,7 +69,8 @@ export function stopRunner ({ host, port, loglevel = LOG_LEVELS.info }) {
       STOP,
       undefined,
       {
-        [OK]: () => {
+        [STOPPING]: (socket) => {
+          socket.emit(STOPPING_ACK)
           resolve('Server stopped')
         }
       },

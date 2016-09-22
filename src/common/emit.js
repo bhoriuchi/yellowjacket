@@ -20,7 +20,7 @@ export default function emit (host, port, event, payload, listeners = {}, errorH
       if (!_.has(socket, `listeners["${listener}"]`)) {
         this.log.trace({ emitter: this._server, listener }, 'adding new listener')
         _.set(this._sockets, `["${host}:${port}"].listeners["${listener}"]`, handler)
-        socket.socket.on(listener, handler)
+        socket.socket.on(listener, () => handler(socket))
       }
     })
     return socket.socket.emit(event, payload)
@@ -42,7 +42,7 @@ export default function emit (host, port, event, payload, listeners = {}, errorH
     _.forEach(listeners, (handler, listener) => {
       this.log.trace({ emitter: this._server, listener }, 'adding new listener')
       _.set(this._sockets, `["${host}:${port}"].listeners["${listener}"]`, handler)
-      socket.on(listener, handler)
+      socket.on(listener, () => handler(socket))
     })
     socket.emit(event, payload)
   })

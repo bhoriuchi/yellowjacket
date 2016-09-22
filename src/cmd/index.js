@@ -5,6 +5,7 @@ import {
   removeRunner,
   updateRunner,
   startRunner,
+  stopRunner,
   scheduleRunner,
   maintenanceRunner
 } from './runner'
@@ -20,7 +21,6 @@ export default function cmd (command) {
     if (!target) return reject(Error('No target specified'))
 
     switch (target) {
-
       case 'runner':
         switch (action) {
           case 'list':
@@ -35,6 +35,8 @@ export default function cmd (command) {
             return resolve(maintenanceRunner.call(this, options))
           case 'start':
             return resolve(startRunner.call(this, options))
+          case 'stop':
+            return resolve(stopRunner.call(this, options))
           case 'schedule':
             return resolve(scheduleRunner.call(this, options))
           default:

@@ -87,13 +87,14 @@ export class YellowJacketServer {
 
                 // if the state is online start the listeners
                 if (this.state === ONLINE) this.startListeners()
+                return this
               })
           })
 
       })
       .catch((error) => {
         this.log.fatal({ server: this._server, error }, 'the server failed to start')
-        throw error
+        throw this
       })
   }
 

@@ -125,6 +125,8 @@ var EVENTS = {
   RUN: 'run',
   OK: 'ok',
   STOP: 'stop',
+  STOPPING: 'stopping',
+  STOPPING_ACK: 'stopping.acknowledge',
   STOP_ERROR: 'stop.error',
   RESTART: 'restart',
   RESTART_ERROR: 'restart.error',
@@ -145,7 +147,7 @@ function checkIn(first) {
   var _this = this;
 
   var msg = first ? 'first check in for ' + this._server : 'checking in ' + this._server;
-  this.log.trace({ server: this._server }, msg);
+  this.log.trace({ server: this._server, state: this.state }, msg);
 
   // run the checkIn on an interval
   setTimeout(function () {
@@ -719,7 +721,9 @@ function startListeners() {
         event.emit(RUN, socket);
       });
 
-      socket.on(STOP$1, function (options) {
+      socket.on(STOP$1, function () {
+        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
         _this.log.trace({ client: client, server: _this._server, event: STOP$1 }, 'received socket event');
         event.emit(STOP$1, { options: options, socket: socket });
       });
@@ -1049,44 +1053,51 @@ function run(socket) {
   return getAssigned.call(this);
 }
 
-var OK$3 = EVENTS.OK;
+var STOPPING$1 = EVENTS.STOPPING;
+var STOPPING_ACK$1 = EVENTS.STOPPING_ACK;
 var OFFLINE$2 = RunnerNodeStateEnum.values.OFFLINE;
 
 
 function forceStop(socket) {
+  var _this = this;
+
+  this.log.info({ server: this._server }, 'stopping server');
+
+  // if no socket, immediately exit
+  if (!socket) process.exit();
+
   // send an ok response to cleanly exit
   // but also set a timeout for 5 seconds to ensure the process exits
-  if (socket) socket.emit(OK$3);
-  if (socket) socket.on(OK$3, function () {
-    return process.exit();
+  socket.on(STOPPING_ACK$1, function () {
+    _this.log.debug({ server: _this._server }, 'got server stop acknowledgement from client, exiting process');
+    process.exit();
   });
+  socket.emit(STOPPING$1);
   setTimeout(function () {
     return process.exit();
   }, 5000);
 }
 
 function processStop(socket, options) {
-  var _this = this;
+  var _this2 = this;
 
   var count = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
 
   // check for force option
-  if (options.force) return forceStop(socket);
+  if (options.force) return forceStop.call(this, socket);
   if (_.keys(this.running).length && count <= options.maxWait) {
     return setTimeout(function () {
-      return processStop.call(_this, socket, options, count++);
+      return processStop.call(_this2, socket, options, count++);
     }, 1000);
   }
-  return forceStop(socket);
+  return forceStop.call(this, socket);
 }
 
-function stop() {
-  var _this2 = this;
+function stop(options, socket) {
+  var _this3 = this;
 
-  var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
-  var socket = arguments[1];
-
-  this.logInfo('Server stop requested');
+  this.log.info({ server: this._server }, 'server stop requested');
+  options = !_.isObject(options) ? {} : options;
   options.maxWait = isNaN(options.maxWait) ? 30 : Math.round(Number(options.maxWait));
 
   // set the runner offline so that it will not be scheduled any new tasks
@@ -1094,9 +1105,10 @@ function stop() {
 
   // check in to update the database
   return this.queries.checkIn().then(function () {
-    return processStop.call(_this2, socket, options);
-  }).catch(function () {
-    return processStop.call(_this2, socket, options);
+    return processStop.call(_this3, socket, options);
+  }).catch(function (error) {
+    _this3.log.error({ server: _this3._server, error: error }, 'failed to process stop');
+    return processStop.call(_this3, socket, options);
   });
 }
 
@@ -1134,7 +1146,9 @@ function emit(host, port, event, payload) {
       if (!_.has(socket, 'listeners["' + listener + '"]')) {
         _this.log.trace({ emitter: _this._server, listener: listener }, 'adding new listener');
         _.set(_this._sockets, '["' + host + ':' + port + '"].listeners["' + listener + '"]', handler);
-        socket.socket.on(listener, handler);
+        socket.socket.on(listener, function () {
+          return handler(socket);
+        });
       }
     });
     return socket.socket.emit(event, payload);
@@ -1156,7 +1170,9 @@ function emit(host, port, event, payload) {
     _.forEach(listeners, function (handler, listener) {
       _this.log.trace({ emitter: _this._server, listener: listener }, 'adding new listener');
       _.set(_this._sockets, '["' + host + ':' + port + '"].listeners["' + listener + '"]', handler);
-      socket.on(listener, handler);
+      socket.on(listener, function () {
+        return handler(socket);
+      });
     });
     socket.emit(event, payload);
   });
@@ -1267,11 +1283,12 @@ var YellowJacketServer = function () {
 
           // if the state is online start the listeners
           if (_this.state === ONLINE) _this.startListeners();
+          return _this;
         });
       });
     }).catch(function (error) {
       _this.log.fatal({ server: _this._server, error: error }, 'the server failed to start');
-      throw error;
+      throw _this;
     });
   }
 
@@ -1353,7 +1370,7 @@ function YellowJacketServer$1 (backend, options) {
 }
 
 var DISCONNECT$1 = EVENTS.DISCONNECT;
-var OK$4 = EVENTS.OK;
+var OK$3 = EVENTS.OK;
 
 
 var YellowjacketClient = function () {
@@ -1391,7 +1408,7 @@ var YellowjacketClient = function () {
     key: 'disconnectSocket',
     value: function disconnectSocket(host, port) {
       this.log.debug({ server: this._server, target: host + ':' + port }, 'disconnecting socket');
-      this.emit(host, port, DISCONNECT$1, undefined, OK$4, function () {
+      this.emit(host, port, DISCONNECT$1, undefined, OK$3, function () {
         return true;
       }, 500);
       var s = _.get(this._sockets, '["' + host + ':' + port + '"].socket');
@@ -1419,6 +1436,8 @@ var MAINTENANCE_ENTER = EVENTS.MAINTENANCE_ENTER;
 var MAINTENANCE_EXIT = EVENTS.MAINTENANCE_EXIT;
 var MAINTENANCE_ERROR = EVENTS.MAINTENANCE_ERROR;
 var MAINTENANCE_OK = EVENTS.MAINTENANCE_OK;
+var STOPPING = EVENTS.STOPPING;
+var STOPPING_ACK = EVENTS.STOPPING_ACK;
 
 
 function listRunner(args) {
@@ -1478,6 +1497,24 @@ function scheduleRunner(_ref) {
   });
 }
 
+function stopRunner(_ref2) {
+  var host = _ref2.host;
+  var port = _ref2.port;
+  var _ref2$loglevel = _ref2.loglevel;
+  var loglevel = _ref2$loglevel === undefined ? LOG_LEVELS.info : _ref2$loglevel;
+
+  var client = YellowjacketClient$1(this, { loglevel: loglevel });
+
+  return new Promise(function (resolve, reject) {
+    client.emit(host, port, STOP, undefined, defineProperty({}, STOPPING, function (socket) {
+      socket.emit(STOPPING_ACK);
+      resolve('Server stopped');
+    }), function (error) {
+      reject(error);
+    });
+  });
+}
+
 function maintenanceRunner(_ref3) {
   var host = _ref3.host;
   var port = _ref3.port;
@@ -1529,7 +1566,6 @@ function cmd(command) {
     if (!target) return reject(Error('No target specified'));
 
     switch (target) {
-
       case 'runner':
         switch (action) {
           case 'list':
@@ -1544,6 +1580,8 @@ function cmd(command) {
             return resolve(maintenanceRunner.call(_this, options));
           case 'start':
             return resolve(startRunner.call(_this, options));
+          case 'stop':
+            return resolve(stopRunner.call(_this, options));
           case 'schedule':
             return resolve(scheduleRunner.call(_this, options));
           default:
@@ -1708,15 +1746,19 @@ function getOptions () {
 function cli(config, parser) {
   var options = getOptions(config, parser);
   this.cmd(options).then(function (result) {
-    try {
-      console.log(JSON.stringify(result, null, '  '));
-    } catch (err) {
-      console.log(result);
+    if (!(result instanceof YellowJacketServer)) {
+      try {
+        console.log(JSON.stringify(result, null, '  '));
+      } catch (err) {
+        console.log(result);
+      }
+      process.exit();
     }
-    process.exit();
   }).catch(function (error) {
-    console.error(error.message);
-    process.exit();
+    if (!(error instanceof YellowJacketServer)) {
+      console.error(error.message);
+      process.exit();
+    }
   });
 }
 
