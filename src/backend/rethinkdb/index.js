@@ -16,7 +16,11 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
 
     // add actions and scheduler and logger
     let { actions, scheduler, logger } = config
-    this.addActions(actions)
+
+    if (_.isFunction(actions) || _.isObject(actions)) {
+      actions = _.isFunction(actions) ? actions(this) : actions
+      this.actions = _.merge({}, this.actions, actions)
+    }
 
     if (_.isFunction(scheduler)) this.scheduler = scheduler
     this.logger = logger

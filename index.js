@@ -1741,7 +1741,11 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     var scheduler = _config.scheduler;
     var logger = _config.logger;
 
-    _this.addActions(actions);
+
+    if (_.isFunction(actions) || _.isObject(actions)) {
+      actions = _.isFunction(actions) ? actions(_this) : actions;
+      _this.actions = _.merge({}, _this.actions, actions);
+    }
 
     if (_.isFunction(scheduler)) _this.scheduler = scheduler;
     _this.logger = logger;
