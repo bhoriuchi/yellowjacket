@@ -40,14 +40,14 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
     // add the cli method
     this.cli = cli.bind(this)
 
-  }
-
-  addActions (actions) {
-    if (!_.isFunction(actions) && !_.isObject(actions)) return
-    // if actions is a function it takes the backend as its argument
-    // otherwise merge with the existing actions
-    actions = _.isFunction(actions) ? actions(this) : actions
-    this.actions = _.merge({}, this.actions, actions)
+    // add additional actions
+    this.addActions = (actions) => {
+      if (!_.isFunction(actions) && !_.isObject(actions)) return
+      // if actions is a function it takes the backend as its argument
+      // otherwise merge with the existing actions
+      actions = _.isFunction(actions) ? actions(this) : actions
+      this.actions = _.merge({}, this.actions, actions)
+    }
   }
 }
 
