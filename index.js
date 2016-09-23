@@ -504,6 +504,52 @@ var installData = {
   }]
 };
 
+function logify(level, args) {
+  if (_.isObject(_.get(args, '[0]'))) {
+    args[0].level = level;
+  } else {
+    args = [{ level: level }].concat(args);
+  }
+  return args;
+}
+
+// basic logging to the console
+function basicLogger () {
+  var self = this;
+  return {
+    fatal: function fatal() {
+      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.fatal) {
+        console.error.apply(null, logify(LOG_LEVELS.fatal, [].concat(Array.prototype.slice.call(arguments))));
+      }
+    },
+    error: function error() {
+      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.error) {
+        console.error.apply(null, logify(LOG_LEVELS.error, [].concat(Array.prototype.slice.call(arguments))));
+      }
+    },
+    warn: function warn() {
+      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.warn) {
+        console.warn.apply(null, logify(LOG_LEVELS.warn, [].concat(Array.prototype.slice.call(arguments))));
+      }
+    },
+    info: function info() {
+      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.info) {
+        console.info.apply(null, logify(LOG_LEVELS.info, [].concat(Array.prototype.slice.call(arguments))));
+      }
+    },
+    debug: function debug() {
+      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.debug) {
+        console.log.apply(this, logify(LOG_LEVELS.debug, [].concat(Array.prototype.slice.call(arguments))));
+      }
+    },
+    trace: function trace() {
+      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.trace) {
+        console.log.apply(null, logify(LOG_LEVELS.trace, [].concat(Array.prototype.slice.call(arguments))));
+      }
+    }
+  };
+}
+
 var classCallCheck = function (instance, Constructor) {
   if (!(instance instanceof Constructor)) {
     throw new TypeError("Cannot call a class as a function");
@@ -604,52 +650,6 @@ var YellowjacketTokenStore = function () {
 
 function tokenStore (config) {
   return new YellowjacketTokenStore(config);
-}
-
-function logify(level, args) {
-  if (_.isObject(_.get(args, '[0]'))) {
-    args[0].level = level;
-  } else {
-    args = [{ level: level }].concat(args);
-  }
-  return args;
-}
-
-// basic logging to the console
-function basicLogger () {
-  var self = this;
-  return {
-    fatal: function fatal() {
-      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.fatal) {
-        console.error.apply(null, logify(LOG_LEVELS.fatal, [].concat(Array.prototype.slice.call(arguments))));
-      }
-    },
-    error: function error() {
-      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.error) {
-        console.error.apply(null, logify(LOG_LEVELS.error, [].concat(Array.prototype.slice.call(arguments))));
-      }
-    },
-    warn: function warn() {
-      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.warn) {
-        console.warn.apply(null, logify(LOG_LEVELS.warn, [].concat(Array.prototype.slice.call(arguments))));
-      }
-    },
-    info: function info() {
-      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.info) {
-        console.info.apply(null, logify(LOG_LEVELS.info, [].concat(Array.prototype.slice.call(arguments))));
-      }
-    },
-    debug: function debug() {
-      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.debug) {
-        console.log.apply(this, logify(LOG_LEVELS.debug, [].concat(Array.prototype.slice.call(arguments))));
-      }
-    },
-    trace: function trace() {
-      if (self._logLevel >= 0 && self._logLevel <= LOG_LEVELS.trace) {
-        console.log.apply(null, logify(LOG_LEVELS.trace, [].concat(Array.prototype.slice.call(arguments))));
-      }
-    }
-  };
 }
 
 var CONNECTION = EVENTS.CONNECTION;
@@ -1791,6 +1791,7 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 
     if (_.isFunction(scheduler)) _this.scheduler = scheduler;
     _this.logger = logger;
+    _this.log = logger || basicLogger.call(_this);
 
     // add install data
     _this.addInstallData(installData);
@@ -1807,19 +1808,17 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     // add the cli method
     _this.cli = cli.bind(_this);
 
-    return _this;
-  }
-
-  createClass(YellowjacketRethinkDBBackend, [{
-    key: 'addActions',
-    value: function addActions(actions) {
+    // add additional actions
+    _this.addActions = function (actions) {
       if (!_.isFunction(actions) && !_.isObject(actions)) return;
       // if actions is a function it takes the backend as its argument
       // otherwise merge with the existing actions
-      actions = _.isFunction(actions) ? actions(this) : actions;
-      this.actions = _.merge({}, this.actions, actions);
-    }
-  }]);
+      actions = _.isFunction(actions) ? actions(_this) : actions;
+      _this.actions = _.merge({}, _this.actions, actions);
+    };
+    return _this;
+  }
+
   return YellowjacketRethinkDBBackend;
 }(graphqlFactoryBackend.GraphQLFactoryRethinkDBBackend);
 
