@@ -1,7 +1,8 @@
 export default {
   fields: {
     id: {
-      type: 'String'
+      type: 'String',
+      primary: true
     },
     appName: {
       description: 'Name used for application logs',
@@ -14,6 +15,18 @@ export default {
     offlineAfterPolls: {
       description: 'Number of checkins that can be missed before marking the runner offline',
       type: 'Int'
+    }
+  },
+  _backend: {
+    schema: 'YJRunner',
+    collection: 'runner_settings',
+    query: {
+      read: { type: 'RunnerSettings', resolve: 'readRunnerSettings' }
+    },
+    mutation: {
+      create: { resolve: 'createRunnerSettings' },
+      update: { resolve: 'updateRunnerSettings' },
+      delete: { resolve: 'deleteRunnerSettings' }
     }
   }
 }

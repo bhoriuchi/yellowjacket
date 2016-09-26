@@ -1,11 +1,13 @@
 export default {
   fields: {
     id: {
-      type: 'String'
+      type: 'String',
+      primary: true
     },
     name: {
       description: 'Zone name',
-      type: 'String'
+      type: 'String',
+      unique: true
     },
     description: {
       description: 'Describe the zone',
@@ -15,5 +17,9 @@ export default {
       description: 'Generic supporting data',
       type: 'FactoryJSON'
     }
+  },
+  _backend: {
+    schema: 'YJRunner',
+    collection: 'runner_zone'
   }
 }

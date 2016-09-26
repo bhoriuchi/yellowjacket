@@ -9,28 +9,29 @@
     "url": "git+https://github.com/bhoriuchi/yellowjacket.git"
   },
   "scripts": {
-    "build:copybrc": "cp build/.build.babelrc src/app/.babelrc && cp build/.build.babelrc src/backend/.babelrc && cp build/.build.babelrc src/graphql/.babelrc && cp build/.build.babelrc src/server/.babelrc",
-    "build:rmbrc": "rm -f src/app/.babelrc && rm -f src/backend/.babelrc && rm -f src/graphql/.babelrc && rm -f src/server/.babelrc",
+    "build:copybrc": "cp build/.build.babelrc src/backend/.babelrc && cp build/.build.babelrc src/graphql/.babelrc && cp build/.build.babelrc src/server/.babelrc && cp build/.build.babelrc src/server/.babelrc",
+    "build:rmbrc": "rm -f src/backend/.babelrc && rm -f src/graphql/.babelrc && rm -f src/server/.babelrc",
     "example": "node example/index.js --harmony",
-    "build:app": "npm run build:copybrc && rollup -c build/rollup.app.config.js && npm run build:rmbrc",
-    "build:install": "npm run build:copybrc && rollup -c build/rollup.install.config.js && npm run build:rmbrc",
     "build:backend": "npm run build:copybrc && rollup -c build/rollup.backend.config.js && npm run build:rmbrc",
-    "build": "npm run build:app && npm run build:backend && npm run build:install",
-    "test": "npm run build && mocha test/index.js"
+    "build": "cp build/.build.babelrc src/.babelrc && rollup -c build/rollup.config.js && rm -f src/.babelrc",
+    "test": "npm run build && mocha test/index.js",
+    "copybe": "cp ../graphql-factory-backend/*.js node_modules/graphql-factory-backend/"
   },
   "author": "Branden Horiuchi <bhoriuchi@gmail.com>",
   "dependencies": {
-    "bunyan": "^1.8.1",
-    "chalk": "^1.1.3",
-    "graphql-factory": "^0.4.4",
+    "graphql-factory": "^0.4.7",
     "graphql-factory-types": "^0.1.1",
+    "graphql-factory-backend": "git+https://github.com/graphql-factory/graphql-factory-backend.git#master",
+    "jsonwebtoken": "^7.1.9",
     "lodash": "^4.15.0",
     "nested-opts": "^0.1.0",
-    "node-getopt": "^0.2.3",
     "socket.io": "^1.4.0",
     "socket.io-client": "^1.4.8"
   },
   "devDependencies": {
+    "bunyan": "^1.8.1",
+    "chalk": "^1.1.3",
+    "node-getopt": "^0.2.3",
     "chai": "^3.5.0",
     "babel-core": "^6.0.0",
     "babel-preset-es2015": "^6.14.0",

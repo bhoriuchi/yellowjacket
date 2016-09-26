@@ -1,2 +1,2 @@
 require('babel-register')
-require('./schedule-es6')
+require('./start-es6')
