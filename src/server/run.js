@@ -44,9 +44,11 @@ export function runTask (task) {
   let { id, action, context } = task
   if (!_.has(this.actions, action)) return this.log.error({ server: this._server, action }, 'action is not valid')
 
+  // add the task to the running object to prevent duplicate runs and potentially use for load balancing
+  this._running[id] = { action, started: new Date() }
+
   return this.queries.updateQueue({ id, state: Enum(RUNNING) })
     .then(() => {
-      this._running[id] = { action, started: new Date() }
       let taskRun = this.actions[action](this, context, doneTask.call(this, id))
       if (this.isPromise(taskRun)) {
         return taskRun.then(() => true).catch((error) => {
@@ -65,7 +67,10 @@ export function getAssigned () {
   return this.queries.readQueue({ runner: this.id, state: Enum(SCHEDULED) })
     .then((tasks) => {
       this.log.trace({ server: this._server }, 'acquired tasks')
-      _.forEach(tasks, (task) => runTask.call(this, task))
+      _.forEach(tasks, (task) => {
+        // do not run the task if its already running
+        if (!_.has(this._running, task.id)) runTask.call(this, task)
+      })
     })
     .catch((error) => {
       this.log.debug({ server: this._server, error }, 'failed to get assigned tasks')

@@ -99,4 +99,6 @@ export default function startListeners () {
     this.log.trace({ server: this._server, event: MAINTENANCE_EXIT }, 'received local event')
     this.maintenance(false, reason, socket)
   })
+
+  this.checkQueue()
 }

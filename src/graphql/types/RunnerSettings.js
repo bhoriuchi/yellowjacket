@@ -12,6 +12,10 @@ export default {
       description: 'Time in seconds between runner checkins',
       type: 'Int'
     },
+    queueCheckFrequency: {
+      description: 'Time in seconds between automatic queue checks',
+      type: 'Int'
+    },
     offlineAfterPolls: {
       description: 'Number of checkins that can be missed before marking the runner offline',
       type: 'Int'

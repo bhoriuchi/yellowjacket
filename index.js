@@ -432,6 +432,10 @@ var RunnerSettings = {
       description: 'Time in seconds between runner checkins',
       type: 'Int'
     },
+    queueCheckFrequency: {
+      description: 'Time in seconds between automatic queue checks',
+      type: 'Int'
+    },
     offlineAfterPolls: {
       description: 'Number of checkins that can be missed before marking the runner offline',
       type: 'Int'
@@ -487,7 +491,7 @@ var types = {
 };
 
 function mergeConfig() {
-  var config = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+  var config = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
   // merge plugins
   var plugin = _.union([FactoryTypePlugin], _.isArray(config.plugin) ? config.plugin : []);
@@ -500,6 +504,7 @@ var installData = {
   RunnerSettings: [{
     appName: 'YELLOWJACKET',
     checkinFrequency: 30,
+    queueCheckFrequency: 30,
     offlineAfterPolls: 1
   }]
 };
@@ -549,6 +554,119 @@ function basicLogger () {
     }
   };
 }
+
+var asyncGenerator = function () {
+  function AwaitValue(value) {
+    this.value = value;
+  }
+
+  function AsyncGenerator(gen) {
+    var front, back;
+
+    function send(key, arg) {
+      return new Promise(function (resolve, reject) {
+        var request = {
+          key: key,
+          arg: arg,
+          resolve: resolve,
+          reject: reject,
+          next: null
+        };
+
+        if (back) {
+          back = back.next = request;
+        } else {
+          front = back = request;
+          resume(key, arg);
+        }
+      });
+    }
+
+    function resume(key, arg) {
+      try {
+        var result = gen[key](arg);
+        var value = result.value;
+
+        if (value instanceof AwaitValue) {
+          Promise.resolve(value.value).then(function (arg) {
+            resume("next", arg);
+          }, function (arg) {
+            resume("throw", arg);
+          });
+        } else {
+          settle(result.done ? "return" : "normal", result.value);
+        }
+      } catch (err) {
+        settle("throw", err);
+      }
+    }
+
+    function settle(type, value) {
+      switch (type) {
+        case "return":
+          front.resolve({
+            value: value,
+            done: true
+          });
+          break;
+
+        case "throw":
+          front.reject(value);
+          break;
+
+        default:
+          front.resolve({
+            value: value,
+            done: false
+          });
+          break;
+      }
+
+      front = front.next;
+
+      if (front) {
+        resume(front.key, front.arg);
+      } else {
+        back = null;
+      }
+    }
+
+    this._invoke = send;
+
+    if (typeof gen.return !== "function") {
+      this.return = undefined;
+    }
+  }
+
+  if (typeof Symbol === "function" && Symbol.asyncIterator) {
+    AsyncGenerator.prototype[Symbol.asyncIterator] = function () {
+      return this;
+    };
+  }
+
+  AsyncGenerator.prototype.next = function (arg) {
+    return this._invoke("next", arg);
+  };
+
+  AsyncGenerator.prototype.throw = function (arg) {
+    return this._invoke("throw", arg);
+  };
+
+  AsyncGenerator.prototype.return = function (arg) {
+    return this._invoke("return", arg);
+  };
+
+  return {
+    wrap: function (fn) {
+      return function () {
+        return new AsyncGenerator(fn.apply(this, arguments));
+      };
+    },
+    await: function (value) {
+      return new AwaitValue(value);
+    }
+  };
+}();
 
 var classCallCheck = function (instance, Constructor) {
   if (!(instance instanceof Constructor)) {
@@ -659,7 +777,7 @@ var AUTHENTICATED = EVENTS.AUTHENTICATED;
 var TOKEN = EVENTS.TOKEN;
 var STATUS = EVENTS.STATUS;
 var SCHEDULE$1 = EVENTS.SCHEDULE;
-var RUN = EVENTS.RUN;
+var RUN$1 = EVENTS.RUN;
 var STOP$1 = EVENTS.STOP;
 var MAINTENANCE_ENTER$1 = EVENTS.MAINTENANCE_ENTER;
 var MAINTENANCE_EXIT$1 = EVENTS.MAINTENANCE_EXIT;
@@ -716,13 +834,13 @@ function startListeners() {
         event.emit(SCHEDULE$1, { payload: payload, socket: socket });
       });
 
-      socket.on(RUN, function () {
-        _this.log.trace({ client: client, server: _this._server, event: RUN }, 'received socket event');
-        event.emit(RUN, socket);
+      socket.on(RUN$1, function () {
+        _this.log.trace({ client: client, server: _this._server, event: RUN$1 }, 'received socket event');
+        event.emit(RUN$1, socket);
       });
 
       socket.on(STOP$1, function () {
-        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+        var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
         _this.log.trace({ client: client, server: _this._server, event: STOP$1 }, 'received socket event');
         event.emit(STOP$1, { options: options, socket: socket });
@@ -749,8 +867,8 @@ function startListeners() {
     _this.schedule(payload, socket);
   });
 
-  event.on(RUN, function (socket) {
-    _this.log.trace({ server: _this._server, event: RUN }, 'received local event');
+  event.on(RUN$1, function (socket) {
+    _this.log.trace({ server: _this._server, event: RUN$1 }, 'received local event');
     _this.run(socket);
   });
 
@@ -777,6 +895,8 @@ function startListeners() {
     _this.log.trace({ server: _this._server, event: MAINTENANCE_EXIT$1 }, 'received local event');
     _this.maintenance(false, reason, socket);
   });
+
+  this.checkQueue();
 }
 
 var ONLINE$1 = RunnerNodeStateEnum.values.ONLINE;
@@ -785,7 +905,7 @@ var Enum = factory.utils.Enum;
 var STATUS$1 = EVENTS.STATUS;
 var SCHEDULE_ERROR$2 = EVENTS.SCHEDULE_ERROR;
 var SCHEDULE_ACCEPT$1 = EVENTS.SCHEDULE_ACCEPT;
-var RUN$1 = EVENTS.RUN;
+var RUN$2 = EVENTS.RUN;
 var OK$2 = EVENTS.OK;
 
 var source = 'server/schedule';
@@ -794,7 +914,7 @@ var source = 'server/schedule';
 function getNextRunner(list, success, fail) {
   var _this = this;
 
-  var idx = arguments.length <= 3 || arguments[3] === undefined ? 0 : arguments[3];
+  var idx = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
 
   this.log.trace({ server: this._server, runner: _.get(list, '[' + idx + ']') }, 'checking runner');
   if (idx >= list.length) {
@@ -829,7 +949,7 @@ function checkRunners(context, queue, list, socket) {
       state: Enum(SCHEDULED)
     }).then(function () {
       _this2.log.debug({ server: _this2._server, runner: runner.id, queue: queue.id }, 'successfully scheduled queue');
-      _this2.emit(runner.host, runner.port, RUN$1, undefined, defineProperty({}, OK$2, function () {
+      _this2.emit(runner.host, runner.port, RUN$2, undefined, defineProperty({}, OK$2, function () {
         var target = runner.host + ':' + runner.port;
         _this2.log.trace({ server: _this2._server, target: target }, 'successfully signaled run');
       }), function () {
@@ -1010,8 +1130,10 @@ function runTask(task) {
 
   if (!_.has(this.actions, action)) return this.log.error({ server: this._server, action: action }, 'action is not valid');
 
+  // add the task to the running object to prevent duplicate runs and potentially use for load balancing
+  this._running[id] = { action: action, started: new Date() };
+
   return this.queries.updateQueue({ id: id, state: Enum$1(RUNNING) }).then(function () {
-    _this4._running[id] = { action: action, started: new Date() };
     var taskRun = _this4.actions[action](_this4, context, doneTask.call(_this4, id));
     if (_this4.isPromise(taskRun)) {
       return taskRun.then(function () {
@@ -1033,7 +1155,8 @@ function getAssigned() {
   return this.queries.readQueue({ runner: this.id, state: Enum$1(SCHEDULED$1) }).then(function (tasks) {
     _this5.log.trace({ server: _this5._server }, 'acquired tasks');
     _.forEach(tasks, function (task) {
-      return runTask.call(_this5, task);
+      // do not run the task if its already running
+      if (!_.has(_this5._running, task.id)) runTask.call(_this5, task);
     });
   }).catch(function (error) {
     _this5.log.debug({ server: _this5._server, error: error }, 'failed to get assigned tasks');
@@ -1081,7 +1204,7 @@ function forceStop(socket) {
 function processStop(socket, options) {
   var _this2 = this;
 
-  var count = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
+  var count = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
 
   // check for force option
   if (options.force) return forceStop.call(this, socket);
@@ -1121,13 +1244,13 @@ var CONNECT_TIMEOUT = EVENTS.CONNECT_TIMEOUT;
 
 
 function emit(host, port, event, payload) {
-  var listeners = arguments.length <= 4 || arguments[4] === undefined ? {} : arguments[4];
+  var listeners = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : {};
 
   var _this = this;
 
-  var errorHandler = arguments.length <= 5 || arguments[5] === undefined ? function () {
+  var errorHandler = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : function () {
     return true;
-  } : arguments[5];
+  };
   var timeout = arguments[6];
 
   this.log.debug({ emitter: this._server, target: host + ':' + port, event: event }, 'emitting event');
@@ -1205,13 +1328,14 @@ var _RunnerNodeStateEnum$ = RunnerNodeStateEnum.values;
 var ONLINE = _RunnerNodeStateEnum$.ONLINE;
 var MAINTENANCE$2 = _RunnerNodeStateEnum$.MAINTENANCE;
 var DISCONNECT = EVENTS.DISCONNECT;
+var RUN = EVENTS.RUN;
 
 
 var YellowJacketServer = function () {
   function YellowJacketServer(backend) {
     var _this = this;
 
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     classCallCheck(this, YellowJacketServer);
     var host = options.host;
     var port = options.port;
@@ -1219,10 +1343,9 @@ var YellowJacketServer = function () {
     var socket = options.socket;
 
     socket = socket || { secure: false, timeout: 2000 };
-    // token = token || { secret: SIGNING_KEY, algorithm: SIGNING_ALG }
 
     this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info;
-    this.log = backend.logger || basicLogger.call(this);
+    this.log = this.makeLog(backend.logger || basicLogger.call(this));
 
     if (!backend) {
       this.log.fatal({}, 'no backend provided');
@@ -1259,9 +1382,10 @@ var YellowJacketServer = function () {
 
     // get the global settings
     return this.queries.getSettings().then(function (settings) {
-      _this._appName = settings.appName;
-      _this._checkinFrequency = settings.checkinFrequency;
-      _this._offlineAfterPolls = settings.offlineAfterPolls;
+      _this._appName = settings.appName || 'YELLOWJACKET';
+      _this._checkinFrequency = settings.checkinFrequency || 30;
+      _this._queueCheckFrequency = settings.queueCheckFrequency || 30;
+      _this._offlineAfterPolls = settings.offlineAfterPolls || 1;
       _this._offlineAfter = _this._checkinFrequency * _this._offlineAfterPolls;
 
       _this.log.info({ server: _this._server }, 'starting server');
@@ -1293,6 +1417,19 @@ var YellowJacketServer = function () {
   }
 
   createClass(YellowJacketServer, [{
+    key: 'checkQueue',
+    value: function checkQueue() {
+      var _this2 = this;
+
+      setTimeout(function () {
+        if (_this2.state === ONLINE) {
+          _this2.log.trace({ server: _this2._server, app: _this2._appName }, 'system initiated run queue check');
+          _this2._emitter.emit(RUN);
+          _this2.checkQueue();
+        }
+      }, this._queueCheckFrequency * 1000);
+    }
+  }, {
     key: 'isPromise',
     value: function isPromise(obj) {
       return _.isFunction(_.get(obj, 'then')) && _.isFunction(_.get(obj, 'catch'));
@@ -1361,6 +1498,37 @@ var YellowJacketServer = function () {
     value: function verify(token) {
       return this._tokenStore.verify(token);
     }
+  }, {
+    key: 'makeLog',
+    value: function makeLog(logger) {
+      var _this3 = this;
+
+      var updateArgs = function updateArgs(args) {
+        if (args.length && _.isObject(args[0])) args[0] = _.merge({ app: _this3._appName, server: _this3._server }, args[0]);else args = [obj].concat(args);
+        return args;
+      };
+
+      return {
+        fatal: function fatal() {
+          if (_.isFunction(_.get(logger, 'fatal'))) logger.fatal.apply(this, updateArgs([].concat(Array.prototype.slice.call(arguments))));
+        },
+        error: function error() {
+          if (_.isFunction(_.get(logger, 'error'))) logger.error.apply(this, updateArgs([].concat(Array.prototype.slice.call(arguments))));
+        },
+        warn: function warn() {
+          if (_.isFunction(_.get(logger, 'warn'))) logger.warn.apply(this, updateArgs([].concat(Array.prototype.slice.call(arguments))));
+        },
+        info: function info() {
+          if (_.isFunction(_.get(logger, 'info'))) logger.info.apply(this, updateArgs([].concat(Array.prototype.slice.call(arguments))));
+        },
+        debug: function debug() {
+          if (_.isFunction(_.get(logger, 'debug'))) logger.debug.apply(this, updateArgs([].concat(Array.prototype.slice.call(arguments))));
+        },
+        trace: function trace() {
+          if (_.isFunction(_.get(logger, 'trace'))) logger.trace.apply(this, updateArgs([].concat(Array.prototype.slice.call(arguments))));
+        }
+      };
+    }
   }]);
   return YellowJacketServer;
 }();
@@ -1375,7 +1543,7 @@ var OK$3 = EVENTS.OK;
 
 var YellowjacketClient = function () {
   function YellowjacketClient(backend) {
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     classCallCheck(this, YellowjacketClient);
     var socket = options.socket;
     var token = options.token;
@@ -1422,7 +1590,7 @@ var YellowjacketClient = function () {
 }();
 
 function YellowjacketClient$1 (backend) {
-  var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
   return new YellowjacketClient(backend, options);
 }
@@ -1471,7 +1639,12 @@ function updateRunner$1(args) {
 }
 
 function startRunner(options) {
-  return YellowJacketServer$1(this, options);
+  var _this = this;
+
+  return YellowJacketServer$1(this, options).then(function (server) {
+    _this.server = server;
+    return server;
+  });
 }
 
 function scheduleRunner(_ref) {
@@ -1719,7 +1892,7 @@ var config = {
 };
 
 function getOptions () {
-  var customConfig = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+  var customConfig = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
   var parser = arguments[1];
 
   var options = {};
@@ -1766,7 +1939,7 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
   inherits(YellowjacketRethinkDBBackend, _GraphQLFactoryRethin);
 
   function YellowjacketRethinkDBBackend(namespace, graphql, r) {
-    var config = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
+    var config = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
     var connection = arguments[4];
     classCallCheck(this, YellowjacketRethinkDBBackend);
 

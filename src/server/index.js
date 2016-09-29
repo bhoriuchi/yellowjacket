@@ -14,16 +14,15 @@ import stopMethod from './stop'
 import emitMethod from '../common/emit'
 import { RunnerNodeStateEnum } from '../graphql/types/index'
 let { values: { ONLINE, MAINTENANCE } } = RunnerNodeStateEnum
-let { DISCONNECT } = EVENTS
+let { DISCONNECT, RUN } = EVENTS
 
 export class YellowJacketServer {
   constructor (backend, options = {}) {
     let { host, port, token, socket } = options
     socket = socket || { secure: false, timeout: 2000 }
-    // token = token || { secret: SIGNING_KEY, algorithm: SIGNING_ALG }
 
     this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info
-    this.log = backend.logger || basicLogger.call(this)
+    this.log = this.makeLog(backend.logger || basicLogger.call(this))
 
     if (!backend) {
       this.log.fatal({}, 'no backend provided')
@@ -61,9 +60,10 @@ export class YellowJacketServer {
     // get the global settings
     return this.queries.getSettings()
       .then((settings) => {
-        this._appName = settings.appName
-        this._checkinFrequency = settings.checkinFrequency
-        this._offlineAfterPolls = settings.offlineAfterPolls
+        this._appName = settings.appName || 'YELLOWJACKET'
+        this._checkinFrequency = settings.checkinFrequency || 30
+        this._queueCheckFrequency = settings.queueCheckFrequency || 30
+        this._offlineAfterPolls = settings.offlineAfterPolls || 1
         this._offlineAfter = this._checkinFrequency * this._offlineAfterPolls
 
         this.log.info({ server: this._server }, 'starting server')
@@ -96,6 +96,16 @@ export class YellowJacketServer {
         this.log.fatal({ server: this._server, error }, 'the server failed to start')
         throw this
       })
+  }
+
+  checkQueue () {
+    setTimeout(() => {
+      if (this.state === ONLINE) {
+        this.log.trace({ server: this._server, app: this._appName }, 'system initiated run queue check')
+        this._emitter.emit(RUN)
+        this.checkQueue()
+      }
+    }, this._queueCheckFrequency * 1000)
   }
 
   isPromise (obj) {
@@ -152,6 +162,35 @@ export class YellowJacketServer {
 
   verify (token) {
     return this._tokenStore.verify(token)
+  }
+
+  makeLog (logger) {
+    let updateArgs = (args) => {
+      if (args.length && _.isObject(args[0])) args[0] = _.merge({ app: this._appName, server: this._server }, args[0])
+      else args = [obj].concat(args)
+      return args
+    }
+
+    return {
+      fatal () {
+        if (_.isFunction(_.get(logger, 'fatal'))) logger.fatal.apply(this, updateArgs([...arguments]))
+      },
+      error () {
+        if (_.isFunction(_.get(logger, 'error'))) logger.error.apply(this, updateArgs([...arguments]))
+      },
+      warn () {
+        if (_.isFunction(_.get(logger, 'warn'))) logger.warn.apply(this, updateArgs([...arguments]))
+      },
+      info () {
+        if (_.isFunction(_.get(logger, 'info'))) logger.info.apply(this, updateArgs([...arguments]))
+      },
+      debug () {
+        if (_.isFunction(_.get(logger, 'debug'))) logger.debug.apply(this, updateArgs([...arguments]))
+      },
+      trace () {
+        if (_.isFunction(_.get(logger, 'trace'))) logger.trace.apply(this, updateArgs([...arguments]))
+      }
+    }
   }
 }
 
