@@ -1344,7 +1344,7 @@ var YellowJacketServer = function () {
 
     socket = socket || { secure: false, timeout: 2000 };
 
-    this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info;
+    backend._logLevel = this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info;
     this.log = this.makeLog(backend.logger || basicLogger.call(this));
 
     if (!backend) {
