@@ -794,6 +794,16 @@ function startListeners() {
     var client = _.get(socket, 'conn.remoteAddress', 'unknown');
     _this.log.debug({ server: _this._server, client: client }, 'socket.io connection made');
 
+    // register pre-authentication events
+    _.forEach(_.get(_this, 'backend.events.socket'), function (evt, evtName) {
+      if (_.get(evt, 'requiresAuth') !== true && _.isFunction(evt.handler)) {
+        _this.log.trace({ event: evtName }, 'registering pre-auth socket event');
+        socket.on(evtName, function (payload) {
+          return evt.handler.call(_this, payload);
+        });
+      }
+    });
+
     // request authentication
     _this.log.trace({ client: client, server: _this._server }, 'emitting authentication request');
     socket.emit(AUTHENTICATE);
@@ -823,6 +833,16 @@ function startListeners() {
       _this.log.trace({ client: client, server: _this._server }, 'token is valid, setting up listeners');
 
       socket.emit(AUTHENTICATED);
+
+      // register post-authentication events
+      _.forEach(_.get(_this, 'backend.events.socket'), function (evt, evtName) {
+        if (_.get(evt, 'requiresAuth') === true && _.isFunction(evt.handler)) {
+          _this.log.trace({ event: evtName }, 'registering post-auth socket event');
+          socket.on(evtName, function (payload) {
+            return evt.handler.call(_this, payload);
+          });
+        }
+      });
 
       socket.on(STATUS, function () {
         _this.log.trace({ client: client, server: _this._server, event: STATUS }, 'received socket event');
@@ -856,6 +876,16 @@ function startListeners() {
         event.emit(MAINTENANCE_EXIT$1, { reason: reason, socket: socket });
       });
     });
+  });
+
+  // register local events
+  _.forEach(_.get(this, 'backend.events.local'), function (handler, evtName) {
+    if (_.isFunction(handler)) {
+      _this.log.trace({ event: evtName }, 'registering local event');
+      event.on(evtName, function (payload) {
+        return handler.call(_this, payload);
+      });
+    }
   });
 
   // handle local events
@@ -1949,6 +1979,10 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 
     _this.type = 'YellowjacketRethinkDBBackend';
     _this.actions = {};
+    _this.events = {
+      local: {},
+      socket: {}
+    };
 
     // add actions and scheduler and logger
     var _config = config;
@@ -1988,6 +2022,12 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
       // otherwise merge with the existing actions
       actions = _.isFunction(actions) ? actions(_this) : actions;
       _this.actions = _.merge({}, _this.actions, actions);
+    };
+
+    // add events
+    _this.addEvents = function (events) {
+      if (_.has(events, 'local')) _.merge(_this.events.local, events.local);
+      if (_.has(events, 'socket')) _.merge(_this.events.socket, events.socket);
     };
     return _this;
   }

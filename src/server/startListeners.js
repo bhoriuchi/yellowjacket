@@ -14,6 +14,14 @@ export default function startListeners () {
     let client = _.get(socket, 'conn.remoteAddress', 'unknown')
     this.log.debug({ server: this._server, client }, 'socket.io connection made')
 
+    // register pre-authentication events
+    _.forEach(_.get(this, 'backend.events.socket'), (evt, evtName) => {
+      if (_.get(evt, 'requiresAuth') !== true && _.isFunction(evt.handler)) {
+        this.log.trace({ event: evtName }, 'registering pre-auth socket event')
+        socket.on(evtName, (payload) => evt.handler.call(this, payload))
+      }
+    })
+
     // request authentication
     this.log.trace({ client, server: this._server }, 'emitting authentication request')
     socket.emit(AUTHENTICATE)
@@ -41,6 +49,15 @@ export default function startListeners () {
       this.log.trace({ client, server: this._server }, 'token is valid, setting up listeners')
 
       socket.emit(AUTHENTICATED)
+
+
+      // register post-authentication events
+      _.forEach(_.get(this, 'backend.events.socket'), (evt, evtName) => {
+        if (_.get(evt, 'requiresAuth') === true && _.isFunction(evt.handler)) {
+          this.log.trace({ event: evtName }, 'registering post-auth socket event')
+          socket.on(evtName, (payload) => evt.handler.call(this, payload))
+        }
+      })
 
       socket.on(STATUS, () => {
         this.log.trace({ client, server: this._server, event: STATUS }, 'received socket event')
@@ -72,6 +89,14 @@ export default function startListeners () {
         event.emit(MAINTENANCE_EXIT, { reason, socket })
       })
     })
+  })
+
+  // register local events
+  _.forEach(_.get(this, 'backend.events.local'), (handler, evtName) => {
+    if (_.isFunction(handler)) {
+      this.log.trace({ event: evtName }, 'registering local event')
+      event.on(evtName, (payload) => handler.call(this, payload))
+    }
   })
 
   // handle local events

@@ -14,6 +14,10 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
     super(namespace, graphql, factory, r, config, connection)
     this.type = 'YellowjacketRethinkDBBackend'
     this.actions = {}
+    this.events = {
+      local: {},
+      socket: {}
+    }
 
     // add actions and scheduler and logger
     let { actions, scheduler, logger } = config
@@ -49,6 +53,12 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
       // otherwise merge with the existing actions
       actions = _.isFunction(actions) ? actions(this) : actions
       this.actions = _.merge({}, this.actions, actions)
+    }
+
+    // add events
+    this.addEvents = (events) => {
+      if (_.has(events, 'local')) _.merge(this.events.local, events.local)
+      if (_.has(events, 'socket')) _.merge(this.events.socket, events.socket)
     }
   }
 }
