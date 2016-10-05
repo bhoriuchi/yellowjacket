@@ -3,6 +3,7 @@ import Events from 'events'
 import tokenStore from '../common/token'
 import emitMethod from '../common/emit'
 import basicLogger from '../common/basicLogger'
+import CONST from '../common/const'
 import { LOG_LEVELS, EVENTS } from '../common/const'
 let { DISCONNECT, OK } = EVENTS
 
@@ -14,6 +15,7 @@ export class YellowjacketClient {
     this.log = backend.logger || basicLogger.call(this)
 
     socket = socket || {}
+    this.CONST = CONST
     this._backend = backend
     this._emitter = new Events.EventEmitter()
     this._host = host || 'localhost'

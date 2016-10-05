@@ -125,7 +125,7 @@ export function createQueue (action, context, socket, requestId) {
   return this.queries.createQueue(action, context)
     .then((queue) => {
       this.log.debug({ server: this._server, source }, 'queue created')
-      if (socket) socket.emit(`${SCHEDULE_ACCEPT}.${requestId}`)
+      if (socket) socket.emit(`${SCHEDULE_ACCEPT}.${requestId}`, {})
       return getOnlineRunner.call(this, action, context, queue, socket, requestId)
     })
     .catch((error) => {
@@ -139,7 +139,7 @@ export function createQueue (action, context, socket, requestId) {
 export default function schedule (payload, socket, requestId) {
   if (this.state !== ONLINE) {
     this.log.debug({ server: this._server, state: this.state }, 'denied schedule request')
-    if (socket) socket.emit(SCHEDULE_ERROR, `runner in state ${this.state} and cannot schedule tasks`)
+    if (socket) socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `runner in state ${this.state} and cannot schedule tasks`)
     return Promise.reject(`runner in state ${this.state} and cannot schedule tasks`)
   }
 

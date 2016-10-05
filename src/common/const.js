@@ -37,7 +37,8 @@ export const EVENTS = {
   MAINTENANCE_ENTER: 'maintenance.enter',
   MAINTENANCE_EXIT: 'maintenance.exit',
   MAINTENANCE_ERROR: 'maintenance.error',
-  MAINTENANCE_OK: 'maintenance.ok'
+  MAINTENANCE_OK: 'maintenance.ok',
+  RESULT: 'result'
 }
 
 // defaults for JWT

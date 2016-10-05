@@ -14,7 +14,7 @@ var SocketServer = _interopDefault(require('socket.io'));
 var fs = _interopDefault(require('fs'));
 var path = _interopDefault(require('path'));
 var jwt = _interopDefault(require('jsonwebtoken'));
-var chalk = _interopDefault(require('chalk'));
+var chalk = require('chalk');
 var hat = _interopDefault(require('hat'));
 var SocketClient = _interopDefault(require('socket.io-client'));
 var NestedOpts = _interopDefault(require('nested-opts'));
@@ -140,12 +140,22 @@ var EVENTS = {
   MAINTENANCE_ENTER: 'maintenance.enter',
   MAINTENANCE_EXIT: 'maintenance.exit',
   MAINTENANCE_ERROR: 'maintenance.error',
-  MAINTENANCE_OK: 'maintenance.ok'
+  MAINTENANCE_OK: 'maintenance.ok',
+  RESULT: 'result'
 };
 
 // defaults for JWT
 var SIGNING_KEY = 'twothingsareinfinitetheuniverseandhumanstupidityandimnotsureabouttheuniverse';
+var SIGNING_ALG = 'none';
 var TOKEN_EXPIRES_IN = 30;
+
+var CONST = {
+  ONE_SECOND_IN_MS: ONE_SECOND_IN_MS,
+  LOG_LEVELS: LOG_LEVELS,
+  EVENTS: EVENTS,
+  SIGNING_KEY: SIGNING_KEY,
+  SIGNING_ALG: SIGNING_ALG
+};
 
 function checkIn(first) {
   var _this = this;
@@ -923,7 +933,6 @@ function startListeners() {
     if (_.isFunction(evt.handler)) {
       _this.log.trace({ eventRegistered: evtName }, 'registering local event');
       event.on(evtName, function (payload) {
-        console.log(chalk.green('made it to local event', evtName));
         evt.handler.call(_this, payload);
       });
     }
@@ -935,7 +944,7 @@ function startListeners() {
     var payload = _ref9.payload;
     var socket = _ref9.socket;
 
-    _this.log.trace({ server: _this._server, event: SCHEDULE$1 }, 'received local event');
+    _this.log.trace({ event: SCHEDULE$1, requestId: requestId }, 'received local event');
     _this.schedule(payload, socket, requestId);
   });
 
@@ -943,7 +952,7 @@ function startListeners() {
     var requestId = _ref10.requestId;
     var socket = _ref10.socket;
 
-    _this.log.trace({ server: _this._server, event: RUN$1 }, 'received local event');
+    _this.log.trace({ event: RUN$1, requestId: requestId }, 'received local event');
     _this.run(socket, requestId);
   });
 
@@ -952,7 +961,7 @@ function startListeners() {
     var payload = _ref11.payload;
     var socket = _ref11.socket;
 
-    _this.log.trace({ server: _this._server, event: STOP$1 }, 'received local event');
+    _this.log.trace({ event: STOP$1, requestId: requestId }, 'received local event');
     _this.stop(payload, socket, requestId);
   });
 
@@ -961,7 +970,7 @@ function startListeners() {
     var payload = _ref12.payload;
     var socket = _ref12.socket;
 
-    _this.log.trace({ server: _this._server, event: MAINTENANCE_ENTER$1 }, 'received local event');
+    _this.log.trace({ event: MAINTENANCE_ENTER$1, requestId: requestId }, 'received local event');
     _this.maintenance(true, payload, socket, requestId);
   });
 
@@ -970,8 +979,8 @@ function startListeners() {
     var payload = _ref13.payload;
     var socket = _ref13.socket;
 
-    _this.log.trace({ server: _this._server, event: MAINTENANCE_EXIT$1 }, 'received local event');
-    _this.maintenance(false, reason, payload, requestId);
+    _this.log.trace({ event: MAINTENANCE_EXIT$1, requestId: requestId }, 'received local event');
+    _this.maintenance(false, payload, socket, requestId);
   });
 
   this.checkQueue();
@@ -1094,7 +1103,7 @@ function createQueue$1(action, context, socket, requestId) {
 
   return this.queries.createQueue(action, context).then(function (queue) {
     _this5.log.debug({ server: _this5._server, source: source }, 'queue created');
-    if (socket) socket.emit(SCHEDULE_ACCEPT$1 + '.' + requestId);
+    if (socket) socket.emit(SCHEDULE_ACCEPT$1 + '.' + requestId, {});
     return getOnlineRunner.call(_this5, action, context, queue, socket, requestId);
   }).catch(function (error) {
     _this5.log.error({ error: error, source: source, server: _this5._server, method: 'createQueue' }, 'failed to create queue');
@@ -1106,7 +1115,7 @@ function createQueue$1(action, context, socket, requestId) {
 function schedule(payload, socket, requestId) {
   if (this.state !== ONLINE$1) {
     this.log.debug({ server: this._server, state: this.state }, 'denied schedule request');
-    if (socket) socket.emit(SCHEDULE_ERROR$2, 'runner in state ' + this.state + ' and cannot schedule tasks');
+    if (socket) socket.emit(SCHEDULE_ERROR$2 + '.' + requestId, 'runner in state ' + this.state + ' and cannot schedule tasks');
     return Promise.reject('runner in state ' + this.state + ' and cannot schedule tasks');
   }
 
@@ -1450,6 +1459,7 @@ var YellowJacketServer = function () {
     }
 
     // store props
+    this.CONST = CONST;
     this.backend = backend;
     this.actions = backend.actions;
     this.options = options;
@@ -1542,23 +1552,23 @@ var YellowJacketServer = function () {
     }
   }, {
     key: 'schedule',
-    value: function schedule$$(payload, socket) {
-      return schedule.call(this, payload, socket);
+    value: function schedule$$(payload, socket, requestId) {
+      return schedule.call(this, payload, socket, requestId);
     }
   }, {
     key: 'run',
-    value: function run$$(socket) {
-      return run.call(this, socket);
+    value: function run$$(socket, requestId) {
+      return run.call(this, socket, requestId);
     }
   }, {
     key: 'stop',
-    value: function stop$$(options, socket) {
-      return stop.call(this, options, socket);
+    value: function stop$$(options, socket, requestId) {
+      return stop.call(this, options, socket, requestId);
     }
   }, {
     key: 'maintenance',
-    value: function maintenance$$(enter, socket) {
-      return maintenance.call(this, enter, socket);
+    value: function maintenance$$(enter, reason, socket, requestId) {
+      return maintenance.call(this, enter, reason, socket, requestId);
     }
   }, {
     key: 'info',
@@ -1651,6 +1661,7 @@ var YellowjacketClient = function () {
     this.log = backend.logger || basicLogger.call(this);
 
     socket = socket || {};
+    this.CONST = CONST;
     this._backend = backend;
     this._emitter = new Events.EventEmitter();
     this._host = host || 'localhost';
@@ -2053,6 +2064,7 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     var _this = possibleConstructorReturn(this, (YellowjacketRethinkDBBackend.__proto__ || Object.getPrototypeOf(YellowjacketRethinkDBBackend)).call(this, namespace, graphql, factory, r, config, connection));
 
     _this.type = 'YellowjacketRethinkDBBackend';
+    _this.CONST = CONST;
     _this.actions = {};
     _this.events = {
       local: {},

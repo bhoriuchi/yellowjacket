@@ -8,12 +8,14 @@ import basicLogger from '../../common/basicLogger'
 import cmd from '../../cmd/index'
 import cli from '../../cli/index'
 import client from '../../client/index'
+import CONST from '../../common/const'
 
 export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend {
   constructor (namespace, graphql, r, config = {}, connection) {
     config = mergeConfig(config)
     super(namespace, graphql, factory, r, config, connection)
     this.type = 'YellowjacketRethinkDBBackend'
+    this.CONST = CONST
     this.actions = {}
     this.events = {
       local: {},

@@ -3,6 +3,7 @@ import Events from 'events'
 import http from 'http'
 import SocketServer from 'socket.io'
 import queries from '../graphql/queries/index'
+import CONST from '../common/const'
 import { LOG_LEVELS, EVENTS } from '../common/const'
 import tokenStore from '../common/token'
 import basicLogger from '../common/basicLogger'
@@ -38,6 +39,7 @@ export class YellowJacketServer {
     }
 
     // store props
+    this.CONST = CONST
     this.backend = backend
     this.actions = backend.actions
     this.options = options
@@ -126,20 +128,20 @@ export class YellowJacketServer {
     return this._token
   }
 
-  schedule (payload, socket) {
-    return scheduleMethod.call(this, payload, socket)
+  schedule (payload, socket, requestId) {
+    return scheduleMethod.call(this, payload, socket, requestId)
   }
 
-  run (socket) {
-    return runMethod.call(this, socket)
+  run (socket, requestId) {
+    return runMethod.call(this, socket, requestId)
   }
 
-  stop (options, socket) {
-    return stopMethod.call(this, options, socket)
+  stop (options, socket, requestId) {
+    return stopMethod.call(this, options, socket, requestId)
   }
 
-  maintenance (enter, socket) {
-    return maintenanceMethod.call(this, enter, socket)
+  maintenance (enter, reason, socket, requestId) {
+    return maintenanceMethod.call(this, enter, reason, socket, requestId)
   }
 
   info () {

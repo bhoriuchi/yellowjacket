@@ -106,7 +106,6 @@ export default function startListeners () {
     if (_.isFunction(evt.handler)) {
       this.log.trace({ eventRegistered: evtName }, 'registering local event')
       event.on(evtName, (payload) => {
-        console.log(chalk.green('made it to local event', evtName))
         evt.handler.call(this, payload)
       })
     }
@@ -114,28 +113,28 @@ export default function startListeners () {
 
   // handle local events
   event.on(SCHEDULE, ({ requestId, payload, socket }) => {
-    this.log.trace({ server: this._server, event: SCHEDULE }, 'received local event')
+    this.log.trace({ event: SCHEDULE, requestId }, 'received local event')
     this.schedule(payload, socket, requestId)
   })
 
   event.on(RUN, ({ requestId, socket }) => {
-    this.log.trace({ server: this._server, event: RUN }, 'received local event')
+    this.log.trace({ event: RUN, requestId  }, 'received local event')
     this.run(socket, requestId)
   })
 
   event.on(STOP, ({ requestId, payload, socket }) => {
-    this.log.trace({ server: this._server, event: STOP }, 'received local event')
+    this.log.trace({ event: STOP, requestId  }, 'received local event')
     this.stop(payload, socket, requestId)
   })
 
   event.on(MAINTENANCE_ENTER, ({ requestId, payload, socket }) => {
-    this.log.trace({ server: this._server, event: MAINTENANCE_ENTER }, 'received local event')
+    this.log.trace({ event: MAINTENANCE_ENTER, requestId  }, 'received local event')
     this.maintenance(true, payload, socket, requestId)
   })
 
   event.on(MAINTENANCE_EXIT, ({ requestId, payload, socket }) => {
-    this.log.trace({ server: this._server, event: MAINTENANCE_EXIT }, 'received local event')
-    this.maintenance(false, reason, payload, requestId)
+    this.log.trace({ event: MAINTENANCE_EXIT, requestId  }, 'received local event')
+    this.maintenance(false, payload, socket, requestId)
   })
 
   this.checkQueue()
