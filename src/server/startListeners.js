@@ -16,8 +16,8 @@ export default function startListeners () {
 
     // register pre-authentication events
     _.forEach(_.get(this, 'backend.events.socket'), (evt, evtName) => {
-      if (_.get(evt, 'requiresAuth') !== true && _.isFunction(evt.handler)) {
-        this.log.trace({ event: evtName }, 'registering pre-auth socket event')
+      if (_.get(evt, 'noAuth') === true && _.isFunction(evt.handler)) {
+        this.log.trace({ eventRegistered: evtName }, 'registering pre-auth socket event')
         socket.on(evtName, (payload) => evt.handler.call(this, payload))
       }
     })
@@ -53,8 +53,8 @@ export default function startListeners () {
 
       // register post-authentication events
       _.forEach(_.get(this, 'backend.events.socket'), (evt, evtName) => {
-        if (_.get(evt, 'requiresAuth') === true && _.isFunction(evt.handler)) {
-          this.log.trace({ event: evtName }, 'registering post-auth socket event')
+        if (_.get(evt, 'noAuth') !== true && _.isFunction(evt.handler)) {
+          this.log.trace({ eventRegistered: evtName }, 'registering post-auth socket event')
           socket.on(evtName, (payload) => evt.handler.call(this, payload))
         }
       })
@@ -92,10 +92,10 @@ export default function startListeners () {
   })
 
   // register local events
-  _.forEach(_.get(this, 'backend.events.local'), (handler, evtName) => {
-    if (_.isFunction(handler)) {
-      this.log.trace({ event: evtName }, 'registering local event')
-      event.on(evtName, (payload) => handler.call(this, payload))
+  _.forEach(_.get(this, 'backend.events.local'), (evt, evtName) => {
+    if (_.isFunction(evt.handler)) {
+      this.log.trace({ eventRegistered: evtName }, 'registering local event')
+      event.on(evtName, (payload) => evt.handler.call(this, payload))
     }
   })
 
