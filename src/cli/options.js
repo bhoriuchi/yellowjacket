@@ -45,7 +45,9 @@ let config = {
             host: { type: 'String' },
             port: { type: 'Int' },
             loglevel: { type: 'String' },
-            logfile: { type: 'String' }
+            logfile: { type: 'String' },
+            token: { type: 'JSON' },
+            socket: { type: 'JSON' }
           }
         },
         stop: {

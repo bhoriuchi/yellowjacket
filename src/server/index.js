@@ -120,6 +120,12 @@ export class YellowJacketServer {
     return emitMethod.call(this, host, port, event, payload, listener, cb, timeout)
   }
 
+  renewToken () {
+    this._tokenStore.renew()
+    this._token = this._tokenStore.token
+    return this._token
+  }
+
   schedule (payload, socket) {
     return scheduleMethod.call(this, payload, socket)
   }

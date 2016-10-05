@@ -22,6 +22,7 @@
     "graphql-factory": "^0.4.7",
     "graphql-factory-types": "^0.1.1",
     "graphql-factory-backend": "git+https://github.com/graphql-factory/graphql-factory-backend.git#master",
+    "hat": "^0.0.3",
     "jsonwebtoken": "^7.1.9",
     "lodash": "^4.15.0",
     "nested-opts": "^0.1.0",

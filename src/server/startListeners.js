@@ -1,9 +1,15 @@
 import _ from 'lodash'
+import chalk from 'chalk'
 import { EVENTS } from '../common/const'
 let {
   CONNECTION, AUTHENTICATE, AUTHENTICATION_ERROR, AUTHENTICATED, TOKEN, STATUS, SCHEDULE, RUN, STOP,
-  MAINTENANCE_ENTER, MAINTENANCE_EXIT
+  MAINTENANCE_ENTER, MAINTENANCE_EXIT, TOKEN_EXPIRED_ERROR
 } = EVENTS
+
+export function maskToken (token) {
+  if (_.isString(token)) return token.replace(/(^\w{0,3}).*/, '$1***********************')
+  return '***********************'
+}
 
 export default function startListeners () {
   let event = this._emitter
@@ -18,7 +24,9 @@ export default function startListeners () {
     _.forEach(_.get(this, 'backend.events.socket'), (evt, evtName) => {
       if (_.get(evt, 'noAuth') === true && _.isFunction(evt.handler)) {
         this.log.trace({ eventRegistered: evtName }, 'registering pre-auth socket event')
-        socket.on(evtName, (payload) => evt.handler.call(this, payload))
+        socket.on(evtName, (payload) => {
+          evt.handler.call(this, { payload, socket })
+        })
       }
     })
 
@@ -28,7 +36,7 @@ export default function startListeners () {
 
     // on receiving a token, attempt to authenticate it
     socket.on(TOKEN, (token) => {
-      this.log.trace({ client, token, server: this._server }, 'received token response')
+      this.log.trace({ client, token: maskToken(token), server: this._server }, 'received token response')
 
       // verify the token
       let payload = this.verify(token)
@@ -36,58 +44,60 @@ export default function startListeners () {
       // if the token is not valid send an error event back
       if (payload.error) {
         this.log.debug({ client, error: payload, server: this._server }, 'socket authentication failed')
-        return socket.emit(AUTHENTICATION_ERROR, payload)
+        return payload.expired ? socket.emit(TOKEN_EXPIRED_ERROR, payload) : socket.emit(AUTHENTICATION_ERROR, payload)
       }
 
       // add the host to the sockets
       let { host, port } = payload
       if (!_.has(this._sockets, `${host}:${port}`)) {
-        _.set(this._sockets, `${host}:${port}`, { socket, listeners: {} })
+        _.set(this._sockets, `${host}:${port}`, socket)
       }
 
       // set up remaining listeners now that we are authenticated
       this.log.trace({ client, server: this._server }, 'token is valid, setting up listeners')
 
-      socket.emit(AUTHENTICATED)
-
-
       // register post-authentication events
       _.forEach(_.get(this, 'backend.events.socket'), (evt, evtName) => {
         if (_.get(evt, 'noAuth') !== true && _.isFunction(evt.handler)) {
           this.log.trace({ eventRegistered: evtName }, 'registering post-auth socket event')
-          socket.on(evtName, (payload) => evt.handler.call(this, payload))
+          socket.on(evtName, (payload) => {
+            evt.handler.call(this, { payload, socket })
+          })
         }
       })
 
-      socket.on(STATUS, () => {
+      socket.on(STATUS, ({ requestId }) => {
         this.log.trace({ client, server: this._server, event: STATUS }, 'received socket event')
-        socket.emit(STATUS, this.info())
+        socket.emit(`${STATUS}.${requestId}`, this.info())
       })
 
-      socket.on(SCHEDULE, (payload) => {
+      socket.on(SCHEDULE, ({ payload, requestId }) => {
         this.log.trace({ client, server: this._server, event: SCHEDULE }, 'received socket event')
-        event.emit(SCHEDULE, { payload, socket })
+        event.emit(SCHEDULE, { requestId, payload, socket })
       })
 
-      socket.on(RUN, () => {
+      socket.on(RUN, ({ requestId }) => {
         this.log.trace({ client, server: this._server, event: RUN }, 'received socket event')
-        event.emit(RUN, socket)
+        event.emit(RUN, { requestId, socket })
       })
 
-      socket.on(STOP, (options = {}) => {
+      socket.on(STOP, ({ requestId, options }) => {
+        options = options || {}
         this.log.trace({ client, server: this._server, event: STOP }, 'received socket event')
-        event.emit(STOP, { options, socket })
+        event.emit(STOP, { requestId, options, socket })
       })
 
-      socket.on(MAINTENANCE_ENTER, (reason) => {
+      socket.on(MAINTENANCE_ENTER, ({ requestId, reason }) => {
         this.log.trace({ client, server: this._server, event: MAINTENANCE_ENTER }, 'received socket event')
-        event.emit(MAINTENANCE_ENTER, { reason, socket })
+        event.emit(MAINTENANCE_ENTER, { requestId, reason, socket })
       })
 
-      socket.on(MAINTENANCE_EXIT, (reason) => {
+      socket.on(MAINTENANCE_EXIT, ({ requestId, reason }) => {
         this.log.trace({ client, server: this._server, event: MAINTENANCE_EXIT }, 'received socket event')
-        event.emit(MAINTENANCE_EXIT, { reason, socket })
+        event.emit(MAINTENANCE_EXIT, { requestId, reason, socket })
       })
+
+      socket.emit(AUTHENTICATED)
     })
   })
 
@@ -95,34 +105,37 @@ export default function startListeners () {
   _.forEach(_.get(this, 'backend.events.local'), (evt, evtName) => {
     if (_.isFunction(evt.handler)) {
       this.log.trace({ eventRegistered: evtName }, 'registering local event')
-      event.on(evtName, (payload) => evt.handler.call(this, payload))
+      event.on(evtName, (payload) => {
+        console.log(chalk.green('made it to local event', evtName))
+        evt.handler.call(this, payload)
+      })
     }
   })
 
   // handle local events
-  event.on(SCHEDULE, ({ payload, socket }) => {
+  event.on(SCHEDULE, ({ requestId, payload, socket }) => {
     this.log.trace({ server: this._server, event: SCHEDULE }, 'received local event')
-    this.schedule(payload, socket)
+    this.schedule(payload, socket, requestId)
   })
 
-  event.on(RUN, (socket) => {
+  event.on(RUN, ({ requestId, socket }) => {
     this.log.trace({ server: this._server, event: RUN }, 'received local event')
-    this.run(socket)
+    this.run(socket, requestId)
   })
 
-  event.on(STOP, ({ options, socket }) => {
+  event.on(STOP, ({ requestId, options, socket }) => {
     this.log.trace({ server: this._server, event: STOP }, 'received local event')
-    this.stop(options, socket)
+    this.stop(options, socket, requestId)
   })
 
-  event.on(MAINTENANCE_ENTER, ({ reason, socket }) => {
+  event.on(MAINTENANCE_ENTER, ({ requestId, reason, socket }) => {
     this.log.trace({ server: this._server, event: MAINTENANCE_ENTER }, 'received local event')
-    this.maintenance(true, reason, socket)
+    this.maintenance(true, reason, socket, requestId)
   })
 
-  event.on(MAINTENANCE_EXIT, ({ reason, socket }) => {
+  event.on(MAINTENANCE_EXIT, ({ requestId, reason, socket }) => {
     this.log.trace({ server: this._server, event: MAINTENANCE_EXIT }, 'received local event')
-    this.maintenance(false, reason, socket)
+    this.maintenance(false, reason, socket, requestId)
   })
 
   this.checkQueue()

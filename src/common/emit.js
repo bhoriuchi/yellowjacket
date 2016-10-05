@@ -1,11 +1,28 @@
 import _ from 'lodash'
+import hat from 'hat'
 import SocketClient from 'socket.io-client'
 import { EVENTS } from './const'
-let { AUTHENTICATE, AUTHENTICATED, AUTHENTICATION_ERROR, TOKEN, CONNECT_ERROR, CONNECT_TIMEOUT } = EVENTS
+let {
+  AUTHENTICATE, AUTHENTICATED, AUTHENTICATION_ERROR, TOKEN, CONNECT_ERROR, CONNECT_TIMEOUT, TOKEN_EXPIRED_ERROR
+} = EVENTS
+
+export function addListeners (socket, listeners, requestId) {
+  _.forEach(listeners, (handler, name) => {
+    let evt = `${name}.${requestId}`
+    this.log.trace({ emitter: this._server, eventName: evt }, 'adding new socket event listener')
+    socket.once(evt, (payload) => {
+      handler.call(this, { payload, socket })
+    })
+  })
+}
 
 export default function emit (host, port, event, payload, listeners = {}, errorHandler = () => true, timeout) {
-  this.log.debug({ emitter: this._server, target: `${host}:${port}`, event }, 'emitting event')
+  let requestId = hat()
+
   timeout = timeout || this._socketTimeout
+
+  // proactively renew the token if it is expired
+  this._token = this._tokenStore.renewIfExpired()
 
   // check if emitting to self, if so use local even emitter
   if (host === this._host && port === this._port) return this._emitter.emit(event, payload)
@@ -16,21 +33,16 @@ export default function emit (host, port, event, payload, listeners = {}, errorH
   // if it does, emit the event
   if (socket) {
     this.log.trace({ emitter: this._server }, 'socket found')
-    _.forEach(listeners, (handler, listener) => {
-      if (!_.has(socket, `listeners["${listener}"]`)) {
-        this.log.trace({ emitter: this._server, listener }, 'adding new listener')
-        _.set(this._sockets, `["${host}:${port}"].listeners["${listener}"]`, handler)
-        socket.socket.on(listener, () => handler(socket))
-      }
-    })
-    return socket.socket.emit(event, payload)
+    addListeners.call(this, socket, listeners, requestId)
+    this.log.debug({ emitter: this._server, target: `${host}:${port}`, event }, 'emitting event on EXISTING connection')
+    return socket.socket.emit(event, { payload, requestId })
   }
 
   this.log.trace({ emitter: this._server }, 'creating a new socket')
 
   // if it does not, initiate a connection
   socket = SocketClient(`http${this._secureSocket ? 's' : ''}://${host}:${port}`, { timeout })
-  _.set(this._sockets, `["${host}:${port}"]`, { socket, listeners: {} })
+  _.set(this._sockets, `["${host}:${port}"]`, socket)
 
   // listen for authentication events
   socket.on(AUTHENTICATE, () => {
@@ -38,13 +50,16 @@ export default function emit (host, port, event, payload, listeners = {}, errorH
     socket.emit(TOKEN, this._token)
   })
 
+  // renew token if expired
+  socket.on(TOKEN_EXPIRED_ERROR, () => {
+    this.log.trace({ emitter: this._server }, 'renewing expired token')
+    socket.emit(TOKEN, this.renewToken())
+  })
+
   socket.on(AUTHENTICATED, () => {
-    _.forEach(listeners, (handler, listener) => {
-      this.log.trace({ emitter: this._server, listener }, 'adding new listener')
-      _.set(this._sockets, `["${host}:${port}"].listeners["${listener}"]`, handler)
-      socket.on(listener, () => handler(socket))
-    })
-    socket.emit(event, payload)
+    addListeners.call(this, socket, listeners, requestId)
+    this.log.debug({ emitter: this._server, target: `${host}:${port}`, event }, 'emitting event on NEW connection')
+    socket.emit(event, { payload, requestId })
   })
 
   // authentication error

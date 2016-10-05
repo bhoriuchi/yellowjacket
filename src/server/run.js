@@ -78,14 +78,14 @@ export function getAssigned () {
 }
 
 // checks for assigned tasks and attempts to run them
-export default function run (socket) {
+export default function run (socket, requestId) {
   if (this.state !== ONLINE) {
     this.log.debug({ server: this._server, state: this.state }, 'denied run request')
-    if (socket) socket.emit(SCHEDULE_ERROR, `runner in state ${this.state} and cannot run tasks`)
+    if (socket) socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `runner in state ${this.state} and cannot run tasks`)
     return Promise.reject(`runner in state ${this.state} and cannot run tasks`)
   }
 
   this.log.trace({ server: this._server }, 'checking queue')
-  if (socket) socket.emit(OK)
+  if (socket) socket.emit(`${OK}.${requestId}`)
   return getAssigned.call(this)
 }

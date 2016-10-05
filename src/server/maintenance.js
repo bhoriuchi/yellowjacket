@@ -4,14 +4,14 @@ let { values: { ONLINE, MAINTENANCE } } = RunnerNodeStateEnum
 let { MAINTENANCE_OK, MAINTENANCE_ERROR } = EVENTS
 
 
-export default function maintenance (enter, reason, socket) {
+export default function maintenance (enter, reason, socket, requestId) {
   if (enter && this.state === ONLINE) {
     this.log.info({ server: this._server, reason }, 'entering maintenance')
     this.state = MAINTENANCE
 
     return this.queries.checkIn()
       .then(() => {
-        if (socket) socket.emit(MAINTENANCE_OK)
+        if (socket) socket.emit(`${MAINTENANCE_OK}.${requestId}`)
         return true
       })
   } else if (!enter && this.state === MAINTENANCE) {
@@ -20,12 +20,12 @@ export default function maintenance (enter, reason, socket) {
 
     return this.queries.checkIn()
       .then(() => {
-        if (socket) socket.emit(MAINTENANCE_OK)
+        if (socket) socket.emit(`${MAINTENANCE_OK}.${requestId}`)
         return true
       })
   } else {
     let msg = `cannot ${enter ? 'enter' : 'exit'} maintenance while state is ${this.state}`
-    if (socket) socket.emit(MAINTENANCE_ERROR, msg)
+    if (socket) socket.emit(`${MAINTENANCE_ERROR}.${requestId}`, msg)
     return Promise.reject(msg)
   }
 }

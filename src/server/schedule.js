@@ -37,7 +37,7 @@ export function getNextRunner (list, success, fail, idx = 0) {
 }
 
 // looks through each runner until it finds one that is online and schedules it
-export function checkRunners (context, queue, list, socket) {
+export function checkRunners (context, queue, list, socket, requestId) {
   let check = new Promise((resolve, reject) => getNextRunner.call(this, list, resolve, reject))
 
   this.log.trace({ server: this._server }, 'checking runners for first online')
@@ -74,14 +74,14 @@ export function checkRunners (context, queue, list, socket) {
 
 
 // schedule a runner
-export function setSchedule (action, context, queue, runners, socket) {
+export function setSchedule (action, context, queue, runners, socket, requestId) {
   return new Promise((resolve, reject) => {
     try {
       return this.scheduler(this, runners, queue, (error, list) => {
         // check for error
         if (error) {
           this.log.error({ error, source, server: this._server, method: 'setSchedule'}, 'failed to set schedule')
-          if (socket) socket.emit(SCHEDULE_ERROR, `failed to schedule ${action} because ${error}`)
+          if (socket) socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `failed to schedule ${action} because ${error}`)
           return reject(error)
         }
 
@@ -97,7 +97,7 @@ export function setSchedule (action, context, queue, runners, socket) {
         this.log.trace({ server: this._server, method: 'setSchedule'}, 'a list of runners was obtained')
 
         // check each runner in the list until one that is ONLINE is found
-        checkRunners.call(this, context, queue, list, socket)
+        checkRunners.call(this, context, queue, list, socket, requestId)
         return resolve()
       })
     } catch (error) {
@@ -108,35 +108,35 @@ export function setSchedule (action, context, queue, runners, socket) {
 }
 
 // get a list of online runners
-export function getOnlineRunner (action, context, queue, socket) {
+export function getOnlineRunner (action, context, queue, socket, requestId) {
   return this.queries.readRunner({ state: Enum(ONLINE) })
     .then((runners) => {
       this.log.debug({ server: this._server, source}, 'got online runners')
-      return setSchedule.call(this, action, context, queue, runners, socket)
+      return setSchedule.call(this, action, context, queue, runners, socket, requestId)
     })
     .catch((error) => {
       this.log.error({ error, source, server: this._server, method: 'getOnlineRunner' }, 'failed to create queue')
-      if (socket) return socket.emit(SCHEDULE_ERROR, `failed to schedule ${action}`)
+      if (socket) return socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `failed to schedule ${action}`)
     })
 }
 
 // Creates a queue document immediately after receiving it then tries to schedule it
-export function createQueue (action, context, socket) {
+export function createQueue (action, context, socket, requestId) {
   return this.queries.createQueue(action, context)
     .then((queue) => {
       this.log.debug({ server: this._server, source }, 'queue created')
-      if (socket) socket.emit(SCHEDULE_ACCEPT)
-      return getOnlineRunner.call(this, action, context, queue, socket)
+      if (socket) socket.emit(`${SCHEDULE_ACCEPT}.${requestId}`)
+      return getOnlineRunner.call(this, action, context, queue, socket, requestId)
     })
     .catch((error) => {
       this.log.error({ error, source, server: this._server, method: 'createQueue' }, 'failed to create queue')
-      if (socket) return socket.emit(SCHEDULE_ERROR, `failed to schedule ${action}`)
+      if (socket) return socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `failed to schedule ${action}`)
     })
 }
 
 
 // entry point for schedule request
-export default function schedule (payload, socket) {
+export default function schedule (payload, socket, requestId) {
   if (this.state !== ONLINE) {
     this.log.debug({ server: this._server, state: this.state }, 'denied schedule request')
     if (socket) socket.emit(SCHEDULE_ERROR, `runner in state ${this.state} and cannot schedule tasks`)
@@ -147,9 +147,9 @@ export default function schedule (payload, socket) {
 
   // validate that the action is valid
   if (!_.has(this.actions, action)) {
-    if (socket) socket.emit(SCHEDULE_ERROR, `${action} is not a known action`)
+    if (socket) socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `${action} is not a known action`)
     this.log.error({ action, source }, 'invalid action requested')
     return Promise.reject('invalid action requested')
   }
-  return createQueue.call(this, action, context, socket)
+  return createQueue.call(this, action, context, socket, requestId)
 }

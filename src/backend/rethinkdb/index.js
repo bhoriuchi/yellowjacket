@@ -7,6 +7,7 @@ import installData from '../installData'
 import basicLogger from '../../common/basicLogger'
 import cmd from '../../cmd/index'
 import cli from '../../cli/index'
+import client from '../../client/index'
 
 export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend {
   constructor (namespace, graphql, r, config = {}, connection) {
@@ -59,6 +60,10 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
     this.addEvents = (events) => {
       if (_.has(events, 'local')) _.merge(this.events.local, events.local)
       if (_.has(events, 'socket')) _.merge(this.events.socket, events.socket)
+    }
+
+    this.client = (options) => {
+      return client(this, options)
     }
   }
 }

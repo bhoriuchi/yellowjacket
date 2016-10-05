@@ -14,6 +14,8 @@ var SocketServer = _interopDefault(require('socket.io'));
 var fs = _interopDefault(require('fs'));
 var path = _interopDefault(require('path'));
 var jwt = _interopDefault(require('jsonwebtoken'));
+var chalk = _interopDefault(require('chalk'));
+var hat = _interopDefault(require('hat'));
 var SocketClient = _interopDefault(require('socket.io-client'));
 var NestedOpts = _interopDefault(require('nested-opts'));
 
@@ -132,6 +134,7 @@ var EVENTS = {
   RESTART_ERROR: 'restart.error',
   AUTHENTICATE: 'authenticate',
   TOKEN: 'token',
+  TOKEN_EXPIRED_ERROR: 'token.expired.error',
   AUTHENTICATION_ERROR: 'authentication.error',
   AUTHENTICATED: 'authenticated',
   MAINTENANCE_ENTER: 'maintenance.enter',
@@ -142,6 +145,7 @@ var EVENTS = {
 
 // defaults for JWT
 var SIGNING_KEY = 'twothingsareinfinitetheuniverseandhumanstupidityandimnotsureabouttheuniverse';
+var TOKEN_EXPIRES_IN = 30;
 
 function checkIn(first) {
   var _this = this;
@@ -740,6 +744,7 @@ var YellowjacketTokenStore = function () {
     if (_.isString(this._config.privateKey)) this._signingKey = fs.readFileSync(path.resolve(this._config.privateKey));
     this.tokenPayload = { host: host, port: port };
     this.tokenOptions = this._config.options || {};
+    this.tokenOptions.expiresIn = this.tokenOptions.expiredIn || TOKEN_EXPIRES_IN;
     this.token = jwt.sign(this.tokenPayload, this._signingKey, this.tokenOptions);
   }
 
@@ -752,6 +757,14 @@ var YellowjacketTokenStore = function () {
     key: 'renew',
     value: function renew() {
       this.token = jwt.sign(this.tokenPayload, this._signingKey, this.tokenOptions);
+      return this.token;
+    }
+  }, {
+    key: 'renewIfExpired',
+    value: function renewIfExpired() {
+      var verify = this.verify(this.token);
+      if (_.has(verify, 'error') && verify.expired) this.renew();
+      return this.token;
     }
   }, {
     key: 'verify',
@@ -759,7 +772,7 @@ var YellowjacketTokenStore = function () {
       try {
         return jwt.verify(token, this._signingKey);
       } catch (error) {
-        return { error: error };
+        return { error: error, expired: _.get(error, 'name') === 'TokenExpiredError' };
       }
     }
   }]);
@@ -781,7 +794,13 @@ var RUN$1 = EVENTS.RUN;
 var STOP$1 = EVENTS.STOP;
 var MAINTENANCE_ENTER$1 = EVENTS.MAINTENANCE_ENTER;
 var MAINTENANCE_EXIT$1 = EVENTS.MAINTENANCE_EXIT;
+var TOKEN_EXPIRED_ERROR = EVENTS.TOKEN_EXPIRED_ERROR;
 
+
+function maskToken(token) {
+  if (_.isString(token)) return token.replace(/(^\w{0,3}).*/, '$1***********************');
+  return '***********************';
+}
 
 function startListeners() {
   var _this = this;
@@ -799,7 +818,7 @@ function startListeners() {
       if (_.get(evt, 'noAuth') === true && _.isFunction(evt.handler)) {
         _this.log.trace({ eventRegistered: evtName }, 'registering pre-auth socket event');
         socket.on(evtName, function (payload) {
-          return evt.handler.call(_this, payload);
+          evt.handler.call(_this, { payload: payload, socket: socket });
         });
       }
     });
@@ -810,7 +829,7 @@ function startListeners() {
 
     // on receiving a token, attempt to authenticate it
     socket.on(TOKEN, function (token) {
-      _this.log.trace({ client: client, token: token, server: _this._server }, 'received token response');
+      _this.log.trace({ client: client, token: maskToken(token), server: _this._server }, 'received token response');
 
       // verify the token
       var payload = _this.verify(token);
@@ -818,7 +837,7 @@ function startListeners() {
       // if the token is not valid send an error event back
       if (payload.error) {
         _this.log.debug({ client: client, error: payload, server: _this._server }, 'socket authentication failed');
-        return socket.emit(AUTHENTICATION_ERROR, payload);
+        return payload.expired ? socket.emit(TOKEN_EXPIRED_ERROR, payload) : socket.emit(AUTHENTICATION_ERROR, payload);
       }
 
       // add the host to the sockets
@@ -826,55 +845,70 @@ function startListeners() {
       var port = payload.port;
 
       if (!_.has(_this._sockets, host + ':' + port)) {
-        _.set(_this._sockets, host + ':' + port, { socket: socket, listeners: {} });
+        _.set(_this._sockets, host + ':' + port, socket);
       }
 
       // set up remaining listeners now that we are authenticated
       _this.log.trace({ client: client, server: _this._server }, 'token is valid, setting up listeners');
-
-      socket.emit(AUTHENTICATED);
 
       // register post-authentication events
       _.forEach(_.get(_this, 'backend.events.socket'), function (evt, evtName) {
         if (_.get(evt, 'noAuth') !== true && _.isFunction(evt.handler)) {
           _this.log.trace({ eventRegistered: evtName }, 'registering post-auth socket event');
           socket.on(evtName, function (payload) {
-            return evt.handler.call(_this, payload);
+            evt.handler.call(_this, { payload: payload, socket: socket });
           });
         }
       });
 
-      socket.on(STATUS, function () {
+      socket.on(STATUS, function (_ref) {
+        var requestId = _ref.requestId;
+
         _this.log.trace({ client: client, server: _this._server, event: STATUS }, 'received socket event');
-        socket.emit(STATUS, _this.info());
+        socket.emit(STATUS + '.' + requestId, _this.info());
       });
 
-      socket.on(SCHEDULE$1, function (payload) {
+      socket.on(SCHEDULE$1, function (_ref2) {
+        var payload = _ref2.payload;
+        var requestId = _ref2.requestId;
+
         _this.log.trace({ client: client, server: _this._server, event: SCHEDULE$1 }, 'received socket event');
-        event.emit(SCHEDULE$1, { payload: payload, socket: socket });
+        event.emit(SCHEDULE$1, { requestId: requestId, payload: payload, socket: socket });
       });
 
-      socket.on(RUN$1, function () {
+      socket.on(RUN$1, function (_ref3) {
+        var requestId = _ref3.requestId;
+
         _this.log.trace({ client: client, server: _this._server, event: RUN$1 }, 'received socket event');
-        event.emit(RUN$1, socket);
+        event.emit(RUN$1, { requestId: requestId, socket: socket });
       });
 
-      socket.on(STOP$1, function () {
-        var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+      socket.on(STOP$1, function (_ref4) {
+        var requestId = _ref4.requestId;
+        var options = _ref4.options;
 
+        options = options || {};
         _this.log.trace({ client: client, server: _this._server, event: STOP$1 }, 'received socket event');
-        event.emit(STOP$1, { options: options, socket: socket });
+        event.emit(STOP$1, { requestId: requestId, options: options, socket: socket });
       });
 
-      socket.on(MAINTENANCE_ENTER$1, function (reason) {
+      socket.on(MAINTENANCE_ENTER$1, function (_ref5) {
+        var requestId = _ref5.requestId;
+        var reason = _ref5.reason;
+
         _this.log.trace({ client: client, server: _this._server, event: MAINTENANCE_ENTER$1 }, 'received socket event');
-        event.emit(MAINTENANCE_ENTER$1, { reason: reason, socket: socket });
+        event.emit(MAINTENANCE_ENTER$1, { requestId: requestId, reason: reason, socket: socket });
       });
 
-      socket.on(MAINTENANCE_EXIT$1, function (reason) {
+      socket.on(MAINTENANCE_EXIT$1, function (_ref6) {
+        var requestId = _ref6.requestId;
+        var reason = _ref6.reason;
+
         _this.log.trace({ client: client, server: _this._server, event: MAINTENANCE_EXIT$1 }, 'received socket event');
-        event.emit(MAINTENANCE_EXIT$1, { reason: reason, socket: socket });
+        event.emit(MAINTENANCE_EXIT$1, { requestId: requestId, reason: reason, socket: socket });
       });
+
+      socket.emit(AUTHENTICATED);
     });
   });
 
@@ -883,47 +917,55 @@ function startListeners() {
     if (_.isFunction(evt.handler)) {
       _this.log.trace({ eventRegistered: evtName }, 'registering local event');
       event.on(evtName, function (payload) {
-        return evt.handler.call(_this, payload);
+        console.log(chalk.green('made it to local event', evtName));
+        evt.handler.call(_this, payload);
       });
     }
   });
 
   // handle local events
-  event.on(SCHEDULE$1, function (_ref) {
-    var payload = _ref.payload;
-    var socket = _ref.socket;
+  event.on(SCHEDULE$1, function (_ref7) {
+    var requestId = _ref7.requestId;
+    var payload = _ref7.payload;
+    var socket = _ref7.socket;
 
     _this.log.trace({ server: _this._server, event: SCHEDULE$1 }, 'received local event');
-    _this.schedule(payload, socket);
+    _this.schedule(payload, socket, requestId);
   });
 
-  event.on(RUN$1, function (socket) {
+  event.on(RUN$1, function (_ref8) {
+    var requestId = _ref8.requestId;
+    var socket = _ref8.socket;
+
     _this.log.trace({ server: _this._server, event: RUN$1 }, 'received local event');
-    _this.run(socket);
+    _this.run(socket, requestId);
   });
 
-  event.on(STOP$1, function (_ref2) {
-    var options = _ref2.options;
-    var socket = _ref2.socket;
+  event.on(STOP$1, function (_ref9) {
+    var requestId = _ref9.requestId;
+    var options = _ref9.options;
+    var socket = _ref9.socket;
 
     _this.log.trace({ server: _this._server, event: STOP$1 }, 'received local event');
-    _this.stop(options, socket);
+    _this.stop(options, socket, requestId);
   });
 
-  event.on(MAINTENANCE_ENTER$1, function (_ref3) {
-    var reason = _ref3.reason;
-    var socket = _ref3.socket;
+  event.on(MAINTENANCE_ENTER$1, function (_ref10) {
+    var requestId = _ref10.requestId;
+    var reason = _ref10.reason;
+    var socket = _ref10.socket;
 
     _this.log.trace({ server: _this._server, event: MAINTENANCE_ENTER$1 }, 'received local event');
-    _this.maintenance(true, reason, socket);
+    _this.maintenance(true, reason, socket, requestId);
   });
 
-  event.on(MAINTENANCE_EXIT$1, function (_ref4) {
-    var reason = _ref4.reason;
-    var socket = _ref4.socket;
+  event.on(MAINTENANCE_EXIT$1, function (_ref11) {
+    var requestId = _ref11.requestId;
+    var reason = _ref11.reason;
+    var socket = _ref11.socket;
 
     _this.log.trace({ server: _this._server, event: MAINTENANCE_EXIT$1 }, 'received local event');
-    _this.maintenance(false, reason, socket);
+    _this.maintenance(false, reason, socket, requestId);
   });
 
   this.checkQueue();
@@ -963,7 +1005,7 @@ function getNextRunner(list, success, fail) {
 }
 
 // looks through each runner until it finds one that is online and schedules it
-function checkRunners(context, queue, list, socket) {
+function checkRunners(context, queue, list, socket, requestId) {
   var _this2 = this;
 
   var check = new Promise(function (resolve, reject) {
@@ -992,7 +1034,7 @@ function checkRunners(context, queue, list, socket) {
 }
 
 // schedule a runner
-function setSchedule(action, context, queue, runners, socket) {
+function setSchedule(action, context, queue, runners, socket, requestId) {
   var _this3 = this;
 
   return new Promise(function (resolve, reject) {
@@ -1001,7 +1043,7 @@ function setSchedule(action, context, queue, runners, socket) {
         // check for error
         if (error) {
           _this3.log.error({ error: error, source: source, server: _this3._server, method: 'setSchedule' }, 'failed to set schedule');
-          if (socket) socket.emit(SCHEDULE_ERROR$2, 'failed to schedule ' + action + ' because ' + error);
+          if (socket) socket.emit(SCHEDULE_ERROR$2 + '.' + requestId, 'failed to schedule ' + action + ' because ' + error);
           return reject(error);
         }
 
@@ -1017,7 +1059,7 @@ function setSchedule(action, context, queue, runners, socket) {
         _this3.log.trace({ server: _this3._server, method: 'setSchedule' }, 'a list of runners was obtained');
 
         // check each runner in the list until one that is ONLINE is found
-        checkRunners.call(_this3, context, queue, list, socket);
+        checkRunners.call(_this3, context, queue, list, socket, requestId);
         return resolve();
       });
     } catch (error) {
@@ -1028,34 +1070,34 @@ function setSchedule(action, context, queue, runners, socket) {
 }
 
 // get a list of online runners
-function getOnlineRunner(action, context, queue, socket) {
+function getOnlineRunner(action, context, queue, socket, requestId) {
   var _this4 = this;
 
   return this.queries.readRunner({ state: Enum(ONLINE$1) }).then(function (runners) {
     _this4.log.debug({ server: _this4._server, source: source }, 'got online runners');
-    return setSchedule.call(_this4, action, context, queue, runners, socket);
+    return setSchedule.call(_this4, action, context, queue, runners, socket, requestId);
   }).catch(function (error) {
     _this4.log.error({ error: error, source: source, server: _this4._server, method: 'getOnlineRunner' }, 'failed to create queue');
-    if (socket) return socket.emit(SCHEDULE_ERROR$2, 'failed to schedule ' + action);
+    if (socket) return socket.emit(SCHEDULE_ERROR$2 + '.' + requestId, 'failed to schedule ' + action);
   });
 }
 
 // Creates a queue document immediately after receiving it then tries to schedule it
-function createQueue$1(action, context, socket) {
+function createQueue$1(action, context, socket, requestId) {
   var _this5 = this;
 
   return this.queries.createQueue(action, context).then(function (queue) {
     _this5.log.debug({ server: _this5._server, source: source }, 'queue created');
-    if (socket) socket.emit(SCHEDULE_ACCEPT$1);
-    return getOnlineRunner.call(_this5, action, context, queue, socket);
+    if (socket) socket.emit(SCHEDULE_ACCEPT$1 + '.' + requestId);
+    return getOnlineRunner.call(_this5, action, context, queue, socket, requestId);
   }).catch(function (error) {
     _this5.log.error({ error: error, source: source, server: _this5._server, method: 'createQueue' }, 'failed to create queue');
-    if (socket) return socket.emit(SCHEDULE_ERROR$2, 'failed to schedule ' + action);
+    if (socket) return socket.emit(SCHEDULE_ERROR$2 + '.' + requestId, 'failed to schedule ' + action);
   });
 }
 
 // entry point for schedule request
-function schedule(payload, socket) {
+function schedule(payload, socket, requestId) {
   if (this.state !== ONLINE$1) {
     this.log.debug({ server: this._server, state: this.state }, 'denied schedule request');
     if (socket) socket.emit(SCHEDULE_ERROR$2, 'runner in state ' + this.state + ' and cannot schedule tasks');
@@ -1068,11 +1110,11 @@ function schedule(payload, socket) {
   // validate that the action is valid
 
   if (!_.has(this.actions, action)) {
-    if (socket) socket.emit(SCHEDULE_ERROR$2, action + ' is not a known action');
+    if (socket) socket.emit(SCHEDULE_ERROR$2 + '.' + requestId, action + ' is not a known action');
     this.log.error({ action: action, source: source }, 'invalid action requested');
     return Promise.reject('invalid action requested');
   }
-  return createQueue$1.call(this, action, context, socket);
+  return createQueue$1.call(this, action, context, socket, requestId);
 }
 
 var _RunnerNodeStateEnum$$1 = RunnerNodeStateEnum.values;
@@ -1082,13 +1124,13 @@ var MAINTENANCE_OK$1 = EVENTS.MAINTENANCE_OK;
 var MAINTENANCE_ERROR$1 = EVENTS.MAINTENANCE_ERROR;
 
 
-function maintenance(enter, reason, socket) {
+function maintenance(enter, reason, socket, requestId) {
   if (enter && this.state === ONLINE$2) {
     this.log.info({ server: this._server, reason: reason }, 'entering maintenance');
     this.state = MAINTENANCE$3;
 
     return this.queries.checkIn().then(function () {
-      if (socket) socket.emit(MAINTENANCE_OK$1);
+      if (socket) socket.emit(MAINTENANCE_OK$1 + '.' + requestId);
       return true;
     });
   } else if (!enter && this.state === MAINTENANCE$3) {
@@ -1096,12 +1138,12 @@ function maintenance(enter, reason, socket) {
     this.state = ONLINE$2;
 
     return this.queries.checkIn().then(function () {
-      if (socket) socket.emit(MAINTENANCE_OK$1);
+      if (socket) socket.emit(MAINTENANCE_OK$1 + '.' + requestId);
       return true;
     });
   } else {
     var msg = 'cannot ' + (enter ? 'enter' : 'exit') + ' maintenance while state is ' + this.state;
-    if (socket) socket.emit(MAINTENANCE_ERROR$1, msg);
+    if (socket) socket.emit(MAINTENANCE_ERROR$1 + '.' + requestId, msg);
     return Promise.reject(msg);
   }
 }
@@ -1194,15 +1236,15 @@ function getAssigned() {
 }
 
 // checks for assigned tasks and attempts to run them
-function run(socket) {
+function run(socket, requestId) {
   if (this.state !== ONLINE$3) {
     this.log.debug({ server: this._server, state: this.state }, 'denied run request');
-    if (socket) socket.emit(SCHEDULE_ERROR, 'runner in state ' + this.state + ' and cannot run tasks');
+    if (socket) socket.emit(SCHEDULE_ERROR + '.' + requestId, 'runner in state ' + this.state + ' and cannot run tasks');
     return Promise.reject('runner in state ' + this.state + ' and cannot run tasks');
   }
 
   this.log.trace({ server: this._server }, 'checking queue');
-  if (socket) socket.emit(OK);
+  if (socket) socket.emit(OK + '.' + requestId);
   return getAssigned.call(this);
 }
 
@@ -1211,7 +1253,7 @@ var STOPPING_ACK$1 = EVENTS.STOPPING_ACK;
 var OFFLINE$2 = RunnerNodeStateEnum.values.OFFLINE;
 
 
-function forceStop(socket) {
+function forceStop(socket, requestId) {
   var _this = this;
 
   this.log.info({ server: this._server }, 'stopping server');
@@ -1225,28 +1267,28 @@ function forceStop(socket) {
     _this.log.debug({ server: _this._server }, 'got server stop acknowledgement from client, exiting process');
     process.exit();
   });
-  socket.emit(STOPPING$1);
+  socket.emit(STOPPING$1 + '.' + requestId);
   setTimeout(function () {
     return process.exit();
   }, 5000);
 }
 
-function processStop(socket, options) {
+function processStop(socket, requestId, options) {
   var _this2 = this;
 
-  var count = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+  var count = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
 
   // check for force option
-  if (options.force) return forceStop.call(this, socket);
+  if (options.force) return forceStop.call(this, socket, requestId);
   if (_.keys(this.running).length && count <= options.maxWait) {
     return setTimeout(function () {
-      return processStop.call(_this2, socket, options, count++);
+      return processStop.call(_this2, socket, requestId, options, count++);
     }, 1000);
   }
-  return forceStop.call(this, socket);
+  return forceStop.call(this, socket, requestId);
 }
 
-function stop(options, socket) {
+function stop(options, socket, requestId) {
   var _this3 = this;
 
   this.log.info({ server: this._server }, 'server stop requested');
@@ -1258,10 +1300,10 @@ function stop(options, socket) {
 
   // check in to update the database
   return this.queries.checkIn().then(function () {
-    return processStop.call(_this3, socket, options);
+    return processStop.call(_this3, socket, requestId, options);
   }).catch(function (error) {
     _this3.log.error({ server: _this3._server, error: error }, 'failed to process stop');
-    return processStop.call(_this3, socket, options);
+    return processStop.call(_this3, socket, requestId, options);
   });
 }
 
@@ -1271,20 +1313,37 @@ var AUTHENTICATION_ERROR$1 = EVENTS.AUTHENTICATION_ERROR;
 var TOKEN$1 = EVENTS.TOKEN;
 var CONNECT_ERROR = EVENTS.CONNECT_ERROR;
 var CONNECT_TIMEOUT = EVENTS.CONNECT_TIMEOUT;
+var TOKEN_EXPIRED_ERROR$1 = EVENTS.TOKEN_EXPIRED_ERROR;
 
+
+function addListeners(socket, listeners, requestId) {
+  var _this = this;
+
+  _.forEach(listeners, function (handler, name) {
+    var evt = name + '.' + requestId;
+    _this.log.trace({ emitter: _this._server, eventName: evt }, 'adding new socket event listener');
+    socket.once(evt, function (payload) {
+      handler.call(_this, { payload: payload, socket: socket });
+    });
+  });
+}
 
 function emit(host, port, event, payload) {
   var listeners = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : {};
 
-  var _this = this;
+  var _this2 = this;
 
   var errorHandler = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : function () {
     return true;
   };
   var timeout = arguments[6];
 
-  this.log.debug({ emitter: this._server, target: host + ':' + port, event: event }, 'emitting event');
+  var requestId = hat();
+
   timeout = timeout || this._socketTimeout;
+
+  // proactively renew the token if it is expired
+  this._token = this._tokenStore.renewIfExpired();
 
   // check if emitting to self, if so use local even emitter
   if (host === this._host && port === this._port) return this._emitter.emit(event, payload);
@@ -1295,60 +1354,54 @@ function emit(host, port, event, payload) {
   // if it does, emit the event
   if (socket) {
     this.log.trace({ emitter: this._server }, 'socket found');
-    _.forEach(listeners, function (handler, listener) {
-      if (!_.has(socket, 'listeners["' + listener + '"]')) {
-        _this.log.trace({ emitter: _this._server, listener: listener }, 'adding new listener');
-        _.set(_this._sockets, '["' + host + ':' + port + '"].listeners["' + listener + '"]', handler);
-        socket.socket.on(listener, function () {
-          return handler(socket);
-        });
-      }
-    });
-    return socket.socket.emit(event, payload);
+    addListeners.call(this, socket, listeners, requestId);
+    this.log.debug({ emitter: this._server, target: host + ':' + port, event: event }, 'emitting event on EXISTING connection');
+    return socket.socket.emit(event, { payload: payload, requestId: requestId });
   }
 
   this.log.trace({ emitter: this._server }, 'creating a new socket');
 
   // if it does not, initiate a connection
   socket = SocketClient('http' + (this._secureSocket ? 's' : '') + '://' + host + ':' + port, { timeout: timeout });
-  _.set(this._sockets, '["' + host + ':' + port + '"]', { socket: socket, listeners: {} });
+  _.set(this._sockets, '["' + host + ':' + port + '"]', socket);
 
   // listen for authentication events
   socket.on(AUTHENTICATE$1, function () {
-    _this.log.trace({ emitter: _this._server }, 'got authentication request, emitting token');
-    socket.emit(TOKEN$1, _this._token);
+    _this2.log.trace({ emitter: _this2._server }, 'got authentication request, emitting token');
+    socket.emit(TOKEN$1, _this2._token);
+  });
+
+  // renew token if expired
+  socket.on(TOKEN_EXPIRED_ERROR$1, function () {
+    _this2.log.trace({ emitter: _this2._server }, 'renewing expired token');
+    socket.emit(TOKEN$1, _this2.renewToken());
   });
 
   socket.on(AUTHENTICATED$1, function () {
-    _.forEach(listeners, function (handler, listener) {
-      _this.log.trace({ emitter: _this._server, listener: listener }, 'adding new listener');
-      _.set(_this._sockets, '["' + host + ':' + port + '"].listeners["' + listener + '"]', handler);
-      socket.on(listener, function () {
-        return handler(socket);
-      });
-    });
-    socket.emit(event, payload);
+    addListeners.call(_this2, socket, listeners, requestId);
+    _this2.log.debug({ emitter: _this2._server, target: host + ':' + port, event: event }, 'emitting event on NEW connection');
+    socket.emit(event, { payload: payload, requestId: requestId });
   });
 
   // authentication error
   socket.on(AUTHENTICATION_ERROR$1, function (error) {
-    _this.log.trace({ emitter: _this._server, error: error }, 'authentication error');
-    _this.disconnectSocket(host, port);
+    _this2.log.trace({ emitter: _this2._server, error: error }, 'authentication error');
+    _this2.disconnectSocket(host, port);
     return errorHandler(error);
   });
 
   // listen for errors
   socket.on(CONNECT_ERROR, function () {
-    var s = _.get(_this._sockets, host + ':' + port);
+    var s = _.get(_this2._sockets, host + ':' + port);
     if (s) {
-      _this.disconnectSocket(host, port);
+      _this2.disconnectSocket(host, port);
       return errorHandler(new Error('socket.io connection error'));
     }
   });
   socket.on(CONNECT_TIMEOUT, function () {
-    var s = _.get(_this._sockets, host + ':' + port);
+    var s = _.get(_this2._sockets, host + ':' + port);
     if (s) {
-      _this.disconnectSocket(host, port);
+      _this2.disconnectSocket(host, port);
       return errorHandler(new Error('socket.io connection timeout error'));
     }
   });
@@ -1473,6 +1526,13 @@ var YellowJacketServer = function () {
     key: 'emit',
     value: function emit$$(host, port, event, payload, listener, cb, timeout) {
       return emit.call(this, host, port, event, payload, listener, cb, timeout);
+    }
+  }, {
+    key: 'renewToken',
+    value: function renewToken() {
+      this._tokenStore.renew();
+      this._token = this._tokenStore.token;
+      return this._token;
     }
   }, {
     key: 'schedule',
@@ -1601,6 +1661,13 @@ var YellowjacketClient = function () {
     key: 'emit',
     value: function emit$$(host, port, event, payload, listener, cb, timeout) {
       return emit.call(this, host, port, event, payload, listener, cb, timeout);
+    }
+  }, {
+    key: 'renewToken',
+    value: function renewToken() {
+      this._tokenStore.renew();
+      this._token = this._tokenStore.token;
+      return this._token;
     }
   }, {
     key: 'disconnectSocket',
@@ -1854,7 +1921,9 @@ var config = {
             host: { type: 'String' },
             port: { type: 'Int' },
             loglevel: { type: 'String' },
-            logfile: { type: 'String' }
+            logfile: { type: 'String' },
+            token: { type: 'JSON' },
+            socket: { type: 'JSON' }
           }
         },
         stop: {
@@ -2028,6 +2097,10 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     _this.addEvents = function (events) {
       if (_.has(events, 'local')) _.merge(_this.events.local, events.local);
       if (_.has(events, 'socket')) _.merge(_this.events.socket, events.socket);
+    };
+
+    _this.client = function (options) {
+      return YellowjacketClient$1(_this, options);
     };
     return _this;
   }

@@ -30,6 +30,12 @@ export class YellowjacketClient {
     return emitMethod.call(this, host, port, event, payload, listener, cb, timeout)
   }
 
+  renewToken () {
+    this._tokenStore.renew()
+    this._token = this._tokenStore.token
+    return this._token
+  }
+
   disconnectSocket (host, port) {
     this.log.debug({ server: this._server, target: `${host}:${port}`}, 'disconnecting socket')
     this.emit(host, port, DISCONNECT, undefined, OK, () => true, 500)

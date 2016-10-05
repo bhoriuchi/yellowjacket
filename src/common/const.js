@@ -31,6 +31,7 @@ export const EVENTS = {
   RESTART_ERROR: 'restart.error',
   AUTHENTICATE: 'authenticate',
   TOKEN: 'token',
+  TOKEN_EXPIRED_ERROR: 'token.expired.error',
   AUTHENTICATION_ERROR: 'authentication.error',
   AUTHENTICATED: 'authenticated',
   MAINTENANCE_ENTER: 'maintenance.enter',
@@ -42,6 +43,7 @@ export const EVENTS = {
 // defaults for JWT
 export const SIGNING_KEY = 'twothingsareinfinitetheuniverseandhumanstupidityandimnotsureabouttheuniverse'
 export const SIGNING_ALG = 'none'
+export const TOKEN_EXPIRES_IN = 30
 
 export default {
   ONE_SECOND_IN_MS,
