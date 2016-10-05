@@ -102,7 +102,7 @@ export class YellowJacketServer {
     setTimeout(() => {
       if (this.state === ONLINE) {
         this.log.trace({ server: this._server, app: this._appName }, 'system initiated run queue check')
-        this._emitter.emit(RUN)
+        this._emitter.emit(RUN, {})
         this.checkQueue()
       }
     }, this._queueCheckFrequency * 1000)

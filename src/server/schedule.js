@@ -54,7 +54,7 @@ export function checkRunners (context, queue, list, socket, requestId) {
           runner.host,
           runner.port,
           RUN,
-          undefined,
+          { requestId },
           {
             [OK]: () => {
               let target = `${runner.host}:${runner.port}`

@@ -24,8 +24,8 @@ export default function startListeners () {
     _.forEach(_.get(this, 'backend.events.socket'), (evt, evtName) => {
       if (_.get(evt, 'noAuth') === true && _.isFunction(evt.handler)) {
         this.log.trace({ eventRegistered: evtName }, 'registering pre-auth socket event')
-        socket.on(evtName, (payload) => {
-          evt.handler.call(this, { payload, socket })
+        socket.on(evtName, ({ payload, requestId }) => {
+          evt.handler.call(this, { requestId, payload, socket })
         })
       }
     })
@@ -60,8 +60,8 @@ export default function startListeners () {
       _.forEach(_.get(this, 'backend.events.socket'), (evt, evtName) => {
         if (_.get(evt, 'noAuth') !== true && _.isFunction(evt.handler)) {
           this.log.trace({ eventRegistered: evtName }, 'registering post-auth socket event')
-          socket.on(evtName, (payload) => {
-            evt.handler.call(this, { payload, socket })
+          socket.on(evtName, ({ payload, requestId }) => {
+            evt.handler.call(this, { requestId, payload, socket })
           })
         }
       })
@@ -81,20 +81,20 @@ export default function startListeners () {
         event.emit(RUN, { requestId, socket })
       })
 
-      socket.on(STOP, ({ requestId, options }) => {
+      socket.on(STOP, ({ requestId, payload }) => {
         options = options || {}
         this.log.trace({ client, server: this._server, event: STOP }, 'received socket event')
-        event.emit(STOP, { requestId, options, socket })
+        event.emit(STOP, { requestId, payload, socket })
       })
 
-      socket.on(MAINTENANCE_ENTER, ({ requestId, reason }) => {
+      socket.on(MAINTENANCE_ENTER, ({ requestId, payload }) => {
         this.log.trace({ client, server: this._server, event: MAINTENANCE_ENTER }, 'received socket event')
-        event.emit(MAINTENANCE_ENTER, { requestId, reason, socket })
+        event.emit(MAINTENANCE_ENTER, { requestId, payload, socket })
       })
 
-      socket.on(MAINTENANCE_EXIT, ({ requestId, reason }) => {
+      socket.on(MAINTENANCE_EXIT, ({ requestId, payload }) => {
         this.log.trace({ client, server: this._server, event: MAINTENANCE_EXIT }, 'received socket event')
-        event.emit(MAINTENANCE_EXIT, { requestId, reason, socket })
+        event.emit(MAINTENANCE_EXIT, { requestId, payload, socket })
       })
 
       socket.emit(AUTHENTICATED)
@@ -123,19 +123,19 @@ export default function startListeners () {
     this.run(socket, requestId)
   })
 
-  event.on(STOP, ({ requestId, options, socket }) => {
+  event.on(STOP, ({ requestId, payload, socket }) => {
     this.log.trace({ server: this._server, event: STOP }, 'received local event')
-    this.stop(options, socket, requestId)
+    this.stop(payload, socket, requestId)
   })
 
-  event.on(MAINTENANCE_ENTER, ({ requestId, reason, socket }) => {
+  event.on(MAINTENANCE_ENTER, ({ requestId, payload, socket }) => {
     this.log.trace({ server: this._server, event: MAINTENANCE_ENTER }, 'received local event')
-    this.maintenance(true, reason, socket, requestId)
+    this.maintenance(true, payload, socket, requestId)
   })
 
-  event.on(MAINTENANCE_EXIT, ({ requestId, reason, socket }) => {
+  event.on(MAINTENANCE_EXIT, ({ requestId, payload, socket }) => {
     this.log.trace({ server: this._server, event: MAINTENANCE_EXIT }, 'received local event')
-    this.maintenance(false, reason, socket, requestId)
+    this.maintenance(false, reason, payload, requestId)
   })
 
   this.checkQueue()

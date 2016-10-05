@@ -35,7 +35,7 @@ export default function emit (host, port, event, payload, listeners = {}, errorH
     this.log.trace({ emitter: this._server }, 'socket found')
     addListeners.call(this, socket, listeners, requestId)
     this.log.debug({ emitter: this._server, target: `${host}:${port}`, event }, 'emitting event on EXISTING connection')
-    return socket.socket.emit(event, { payload, requestId })
+    return socket.emit(event, { payload, requestId })
   }
 
   this.log.trace({ emitter: this._server }, 'creating a new socket')

@@ -71,7 +71,7 @@ export function stopRunner ({ host, port, loglevel = LOG_LEVELS.info }) {
       host,
       port,
       STOP,
-      undefined,
+      {},
       {
         [STOPPING]: (socket) => {
           socket.emit(STOPPING_ACK)
