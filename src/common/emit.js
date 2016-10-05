@@ -11,7 +11,7 @@ export function addListeners (socket, listeners, requestId) {
     let evt = `${name}.${requestId}`
     this.log.trace({ emitter: this._server, eventName: evt }, 'adding new socket event listener')
     socket.once(evt, (payload) => {
-      handler.call(this, { payload, socket })
+      handler.call(this, { requestId, payload, socket })
     })
   })
 }

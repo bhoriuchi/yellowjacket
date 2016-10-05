@@ -1338,7 +1338,7 @@ function addListeners(socket, listeners, requestId) {
     var evt = name + '.' + requestId;
     _this.log.trace({ emitter: _this._server, eventName: evt }, 'adding new socket event listener');
     socket.once(evt, function (payload) {
-      handler.call(_this, { payload: payload, socket: socket });
+      handler.call(_this, { requestId: requestId, payload: payload, socket: socket });
     });
   });
 }
