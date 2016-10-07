@@ -754,7 +754,7 @@ var YellowjacketTokenStore = function () {
     if (_.isString(this._config.privateKey)) this._signingKey = fs.readFileSync(path.resolve(this._config.privateKey));
     this.tokenPayload = { host: host, port: port };
     this.tokenOptions = this._config.options || {};
-    this.tokenOptions.expiresIn = this.tokenOptions.expiredIn || TOKEN_EXPIRES_IN;
+    this.tokenOptions.expiresIn = this.tokenOptions.expiresIn || TOKEN_EXPIRES_IN;
     this.token = jwt.sign(this.tokenPayload, this._signingKey, this.tokenOptions);
   }
 
