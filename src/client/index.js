@@ -19,7 +19,7 @@ export class YellowjacketClient {
     this._backend = backend
     this._emitter = new Events.EventEmitter()
     this._host = host || 'localhost'
-    this._port = port || 1
+    this._port = port || 8080
     this._server = `${this._host}:${this._port}`
     this._tokenStore = tokenStore(this._host, this._port, token)
     this._token = this._tokenStore.token

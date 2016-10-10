@@ -15,6 +15,7 @@ var fs = _interopDefault(require('fs'));
 var path = _interopDefault(require('path'));
 var jwt = _interopDefault(require('jsonwebtoken'));
 var chalk = require('chalk');
+var socketioJwt = _interopDefault(require('socketio-jwt'));
 var hat = _interopDefault(require('hat'));
 var SocketClient = _interopDefault(require('socket.io-client'));
 var NestedOpts = _interopDefault(require('nested-opts'));
@@ -115,6 +116,7 @@ var LOG_LEVELS = {
 };
 
 var EVENTS = {
+  CONNECT: 'connect',
   CONNECTION: 'connection',
   CONNECTED: 'connected',
   CONNECT_ERROR: 'connect_error',
@@ -141,7 +143,8 @@ var EVENTS = {
   MAINTENANCE_EXIT: 'maintenance.exit',
   MAINTENANCE_ERROR: 'maintenance.error',
   MAINTENANCE_OK: 'maintenance.ok',
-  RESULT: 'result'
+  RESULT: 'result',
+  UNAUTHORIZED: 'unauthorized'
 };
 
 // defaults for JWT
@@ -785,6 +788,11 @@ var YellowjacketTokenStore = function () {
         return { error: error, expired: _.get(error, 'name') === 'TokenExpiredError' };
       }
     }
+  }, {
+    key: 'secret',
+    get: function get() {
+      return this._config.secret;
+    }
   }]);
   return YellowjacketTokenStore;
 }();
@@ -807,28 +815,16 @@ var MAINTENANCE_EXIT$1 = EVENTS.MAINTENANCE_EXIT;
 var TOKEN_EXPIRED_ERROR = EVENTS.TOKEN_EXPIRED_ERROR;
 
 
-function maskToken(token) {
-  if (_.isString(token)) return token.replace(/(^\w{0,3}).*/, '$1***********************');
-  return '***********************';
-}
-
-function addListeners(payload) {
+function addListeners(socket) {
   var _this = this;
 
-  // add the host to the sockets
-  var host = payload.host;
-  var port = payload.port;
-
-  if (!_.has(this._sockets, host + ':' + port)) {
-    _.set(this._sockets, host + ':' + port, socket);
-  }
-
-  // set up remaining listeners now that we are authenticated
-  this.log.trace({ client: client, server: this._server }, 'token is valid, setting up listeners');
+  var event = this._emitter;
+  var client = _.get(socket, 'conn.remoteAddress', 'unknown');
+  this.log.debug({ server: this._server, client: client }, 'socket.io connection made');
 
   // register post-authentication events
   _.forEach(_.get(this, 'backend.events.socket'), function (evt, evtName) {
-    if (_.get(evt, 'noAuth') !== true && _.isFunction(evt.handler)) {
+    if (_.isFunction(evt.handler)) {
       _this.log.trace({ eventRegistered: evtName }, 'registering post-auth socket event');
       socket.on(evtName, function (_ref) {
         var payload = _ref.payload;
@@ -890,54 +886,20 @@ function addListeners(payload) {
 function startListeners() {
   var _this2 = this;
 
-  var authenticate = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
+  var useConnection = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
 
   var event = this._emitter;
   this.log.info({ method: 'startListeners', server: this._server }, 'socket server is now listening');
 
   // handle socket events
-  this._io.on(CONNECTION, function (socket) {
-    var client = _.get(socket, 'conn.remoteAddress', 'unknown');
-    _this2.log.debug({ server: _this2._server, client: client }, 'socket.io connection made');
-
-    // register pre-authentication events
-    _.forEach(_.get(_this2, 'backend.events.socket'), function (evt, evtName) {
-      if (_.get(evt, 'noAuth') === true && _.isFunction(evt.handler)) {
-        _this2.log.trace({ eventRegistered: evtName }, 'registering pre-auth socket event');
-        socket.on(evtName, function (_ref8) {
-          var payload = _ref8.payload;
-          var requestId = _ref8.requestId;
-
-          evt.handler.call(_this2, { requestId: requestId, payload: payload, socket: socket });
-        });
-      }
+  if (!useConnection) {
+    this._io.sockets.on(CONNECTION, socketioJwt.authorize({
+      secret: this._tokenStore.secret,
+      callback: false
+    })).on(AUTHENTICATED, function (socket) {
+      return addListeners.call(_this2, socket);
     });
-
-    // check if not authenticating add listeners and return
-    if (!authenticate) return addListeners.call(_this2, { host: socket.id, port: 1 });
-
-    // request authentication
-    _this2.log.trace({ client: client, server: _this2._server }, 'emitting authentication request');
-    socket.emit(AUTHENTICATE);
-
-    // on receiving a token, attempt to authenticate it
-    socket.on(TOKEN, function (token) {
-      _this2.log.trace({ client: client, token: maskToken(token), server: _this2._server }, 'received token response');
-
-      // verify the token
-      var payload = _this2.verify(token);
-
-      // if the token is not valid send an error event back
-      if (payload.error) {
-        _this2.log.debug({ client: client, error: payload, server: _this2._server }, 'socket authentication failed');
-        return payload.expired ? socket.emit(TOKEN_EXPIRED_ERROR, payload) : socket.emit(AUTHENTICATION_ERROR, payload);
-      }
-
-      addListeners.call(_this2, payload);
-
-      socket.emit(AUTHENTICATED);
-    });
-  });
+  }
 
   // register local events
   _.forEach(_.get(this, 'backend.events.local'), function (evt, evtName) {
@@ -950,45 +912,45 @@ function startListeners() {
   });
 
   // handle local events
-  event.on(SCHEDULE$1, function (_ref9) {
-    var requestId = _ref9.requestId;
-    var payload = _ref9.payload;
-    var socket = _ref9.socket;
+  event.on(SCHEDULE$1, function (_ref8) {
+    var requestId = _ref8.requestId;
+    var payload = _ref8.payload;
+    var socket = _ref8.socket;
 
     _this2.log.trace({ event: SCHEDULE$1, requestId: requestId }, 'received local event');
     _this2.schedule(payload, socket, requestId);
   });
 
-  event.on(RUN$1, function (_ref10) {
-    var requestId = _ref10.requestId;
-    var socket = _ref10.socket;
+  event.on(RUN$1, function (_ref9) {
+    var requestId = _ref9.requestId;
+    var socket = _ref9.socket;
 
     _this2.log.trace({ event: RUN$1, requestId: requestId }, 'received local event');
     _this2.run(socket, requestId);
   });
 
-  event.on(STOP$1, function (_ref11) {
-    var requestId = _ref11.requestId;
-    var payload = _ref11.payload;
-    var socket = _ref11.socket;
+  event.on(STOP$1, function (_ref10) {
+    var requestId = _ref10.requestId;
+    var payload = _ref10.payload;
+    var socket = _ref10.socket;
 
     _this2.log.trace({ event: STOP$1, requestId: requestId }, 'received local event');
     _this2.stop(payload, socket, requestId);
   });
 
-  event.on(MAINTENANCE_ENTER$1, function (_ref12) {
-    var requestId = _ref12.requestId;
-    var payload = _ref12.payload;
-    var socket = _ref12.socket;
+  event.on(MAINTENANCE_ENTER$1, function (_ref11) {
+    var requestId = _ref11.requestId;
+    var payload = _ref11.payload;
+    var socket = _ref11.socket;
 
     _this2.log.trace({ event: MAINTENANCE_ENTER$1, requestId: requestId }, 'received local event');
     _this2.maintenance(true, payload, socket, requestId);
   });
 
-  event.on(MAINTENANCE_EXIT$1, function (_ref13) {
-    var requestId = _ref13.requestId;
-    var payload = _ref13.payload;
-    var socket = _ref13.socket;
+  event.on(MAINTENANCE_EXIT$1, function (_ref12) {
+    var requestId = _ref12.requestId;
+    var payload = _ref12.payload;
+    var socket = _ref12.socket;
 
     _this2.log.trace({ event: MAINTENANCE_EXIT$1, requestId: requestId }, 'received local event');
     _this2.maintenance(false, payload, socket, requestId);
@@ -1333,6 +1295,8 @@ function stop(options, socket, requestId) {
   });
 }
 
+var CONNECT = EVENTS.CONNECT;
+var UNAUTHORIZED = EVENTS.UNAUTHORIZED;
 var AUTHENTICATE$1 = EVENTS.AUTHENTICATE;
 var AUTHENTICATED$1 = EVENTS.AUTHENTICATED;
 var AUTHENTICATION_ERROR$1 = EVENTS.AUTHENTICATION_ERROR;
@@ -1391,30 +1355,39 @@ function emit(host, port, event, payload) {
   socket = SocketClient('http' + (this._secureSocket ? 's' : '') + '://' + host + ':' + port, { timeout: timeout });
   _.set(this._sockets, '["' + host + ':' + port + '"]', socket);
 
+  socket.on(CONNECT, function () {
+    socket.emit(AUTHENTICATE$1, { token: _this2._token }).on(AUTHENTICATED$1, function () {
+      addListeners$1.call(_this2, socket, listeners, requestId);
+      _this2.log.debug({ emitter: _this2._server, target: host + ':' + port, event: event }, 'emitting event on NEW connection');
+      socket.emit(event, { payload: payload, requestId: requestId });
+    }).on(UNAUTHORIZED, function (msg) {
+      console.log('unauth', msg);
+    });
+  });
+
   // listen for authentication events
-  socket.on(AUTHENTICATE$1, function () {
-    _this2.log.trace({ emitter: _this2._server }, 'got authentication request, emitting token');
-    socket.emit(TOKEN$1, _this2._token);
-  });
-
-  // renew token if expired
-  socket.on(TOKEN_EXPIRED_ERROR$1, function () {
-    _this2.log.trace({ emitter: _this2._server }, 'renewing expired token');
-    socket.emit(TOKEN$1, _this2.renewToken());
-  });
-
-  socket.on(AUTHENTICATED$1, function () {
-    addListeners$1.call(_this2, socket, listeners, requestId);
-    _this2.log.debug({ emitter: _this2._server, target: host + ':' + port, event: event }, 'emitting event on NEW connection');
-    socket.emit(event, { payload: payload, requestId: requestId });
-  });
-
-  // authentication error
-  socket.on(AUTHENTICATION_ERROR$1, function (error) {
-    _this2.log.trace({ emitter: _this2._server, error: error }, 'authentication error');
-    _this2.disconnectSocket(host, port);
-    return errorHandler(error);
-  });
+  /*
+  socket.on(AUTHENTICATE, () => {
+    this.log.trace({ emitter: this._server }, 'got authentication request, emitting token')
+    socket.emit(TOKEN, this._token)
+  })
+   // renew token if expired
+  socket.on(TOKEN_EXPIRED_ERROR, () => {
+    this.log.trace({ emitter: this._server }, 'renewing expired token')
+    socket.emit(TOKEN, this.renewToken())
+  })
+   socket.on(AUTHENTICATED, () => {
+    addListeners.call(this, socket, listeners, requestId)
+    this.log.debug({ emitter: this._server, target: `${host}:${port}`, event }, 'emitting event on NEW connection')
+    socket.emit(event, { payload, requestId })
+  })
+   // authentication error
+  socket.on(AUTHENTICATION_ERROR, (error) => {
+    this.log.trace({ emitter: this._server, error }, 'authentication error')
+    this.disconnectSocket(host, port)
+    return errorHandler(error)
+  })
+  */
 
   // listen for errors
   socket.on(CONNECT_ERROR, function () {
@@ -1450,11 +1423,10 @@ var YellowJacketServer = function () {
     var port = options.port;
     var token = options.token;
     var socket = options.socket;
-    var app = options.app;
-    var io = options.io;
-    var authenticate = options.authenticate;
+    var server = options.server;
 
     socket = socket || { secure: false, timeout: 2000 };
+    server = server || {};
 
     backend._logLevel = this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info;
     this.log = this.makeLog(backend.logger || basicLogger.call(this));
@@ -1480,7 +1452,7 @@ var YellowJacketServer = function () {
     this.scheduler = backend.scheduler || this.defaultScheduler;
     this.queries = queries(this);
     this.lib = backend.lib;
-    this._host = host;
+    this._host = host || 'localhost';
     this._port = port || 8080;
     this._server = this._host + ':' + this._port;
     this._emitter = new Events.EventEmitter();
@@ -1488,6 +1460,7 @@ var YellowJacketServer = function () {
     this._socketTimeout = socket.timeout || 2000;
     this._secureSocket = Boolean(socket.secure);
     this._running = {};
+    this.addListeners = addListeners.bind(this);
 
     // token settings and creation
     this._tokenStore = tokenStore(this._host, this._port, token);
@@ -1511,15 +1484,22 @@ var YellowJacketServer = function () {
         // check in
         return _this.queries.checkIn(true).then(function () {
           // set up socket.io server
-          _this._app = app || http.createServer(function (req, res) {
-            res.writeHead(200);
-            res.end('' + _this._server);
-          });
-          _this._app.listen(port);
-          _this._io = io || new SocketServer(_this._app);
+          if (!server.io && !server.app) {
+            _this._app = http.createServer(function (req, res) {
+              res.writeHead(200);
+              res.end('' + _this._server);
+            });
+            _this._app.listen(port);
+            _this._io = new SocketServer(_this._app);
+          } else if (server.app && !server.io) {
+            _this._app = server.app;
+            _this._io = new SocketServer(_this._app);
+          } else {
+            _this._io = server.io;
+          }
 
           // if the state is online start the listeners
-          if (_this.state === ONLINE) _this.startListeners(authenticate);
+          if (_this.state === ONLINE) _this.startListeners(server.useConnection);
           return _this;
         });
       });
@@ -1679,7 +1659,7 @@ var YellowjacketClient = function () {
     this._backend = backend;
     this._emitter = new Events.EventEmitter();
     this._host = host || 'localhost';
-    this._port = port || 1;
+    this._port = port || 8080;
     this._server = this._host + ':' + this._port;
     this._tokenStore = tokenStore(this._host, this._port, token);
     this._token = this._tokenStore.token;

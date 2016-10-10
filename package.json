@@ -27,7 +27,8 @@
     "lodash": "^4.15.0",
     "nested-opts": "^0.1.0",
     "socket.io": "^1.4.0",
-    "socket.io-client": "^1.4.8"
+    "socket.io-client": "^1.4.8",
+    "socketio-jwt": "^4.5.0"
   },
   "devDependencies": {
     "bunyan": "^1.8.1",

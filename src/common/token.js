@@ -24,6 +24,10 @@ export class YellowjacketTokenStore {
     return this.token
   }
 
+  get secret () {
+    return this._config.secret
+  }
+
   renewIfExpired () {
     let verify = this.verify(this.token)
     if (_.has(verify, 'error') && verify.expired) this.renew()

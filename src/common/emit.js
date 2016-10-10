@@ -3,7 +3,7 @@ import hat from 'hat'
 import SocketClient from 'socket.io-client'
 import { EVENTS } from './const'
 let {
-  AUTHENTICATE, AUTHENTICATED, AUTHENTICATION_ERROR, TOKEN, CONNECT_ERROR, CONNECT_TIMEOUT, TOKEN_EXPIRED_ERROR
+  CONNECT, UNAUTHORIZED, AUTHENTICATE, AUTHENTICATED, AUTHENTICATION_ERROR, TOKEN, CONNECT_ERROR, CONNECT_TIMEOUT, TOKEN_EXPIRED_ERROR
 } = EVENTS
 
 export function addListeners (socket, listeners, requestId) {
@@ -44,7 +44,20 @@ export default function emit (host, port, event, payload, listeners = {}, errorH
   socket = SocketClient(`http${this._secureSocket ? 's' : ''}://${host}:${port}`, { timeout })
   _.set(this._sockets, `["${host}:${port}"]`, socket)
 
+  socket.on(CONNECT, () => {
+    socket.emit(AUTHENTICATE, { token: this._token })
+      .on(AUTHENTICATED, () => {
+        addListeners.call(this, socket, listeners, requestId)
+        this.log.debug({ emitter: this._server, target: `${host}:${port}`, event }, 'emitting event on NEW connection')
+        socket.emit(event, { payload, requestId })
+      })
+      .on(UNAUTHORIZED, (msg) => {
+        console.log('unauth', msg)
+      })
+  })
+
   // listen for authentication events
+  /*
   socket.on(AUTHENTICATE, () => {
     this.log.trace({ emitter: this._server }, 'got authentication request, emitting token')
     socket.emit(TOKEN, this._token)
@@ -68,6 +81,7 @@ export default function emit (host, port, event, payload, listeners = {}, errorH
     this.disconnectSocket(host, port)
     return errorHandler(error)
   })
+  */
 
   // listen for errors
   socket.on(CONNECT_ERROR, () => {

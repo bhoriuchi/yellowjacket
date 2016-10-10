@@ -8,6 +8,7 @@ import { LOG_LEVELS, EVENTS } from '../common/const'
 import tokenStore from '../common/token'
 import basicLogger from '../common/basicLogger'
 import startListeners from './startListeners'
+import { addListeners } from './startListeners'
 import scheduleMethod from './schedule'
 import maintenanceMethod from './maintenance'
 import runMethod from './run'
@@ -19,8 +20,9 @@ let { DISCONNECT, RUN } = EVENTS
 
 export class YellowJacketServer {
   constructor (backend, options = {}) {
-    let { host, port, token, socket, app, io, authenticate } = options
+    let { host, port, token, socket, server } = options
     socket = socket || { secure: false, timeout: 2000 }
+    server = server || {}
 
     backend._logLevel = this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info
     this.log = this.makeLog(backend.logger || basicLogger.call(this))
@@ -46,7 +48,7 @@ export class YellowJacketServer {
     this.scheduler = backend.scheduler || this.defaultScheduler
     this.queries = queries(this)
     this.lib = backend.lib
-    this._host = host
+    this._host = host || 'localhost'
     this._port = port || 8080
     this._server = `${this._host}:${this._port}`
     this._emitter = new Events.EventEmitter()
@@ -54,6 +56,7 @@ export class YellowJacketServer {
     this._socketTimeout = socket.timeout || 2000
     this._secureSocket = Boolean(socket.secure)
     this._running = {}
+    this.addListeners = addListeners.bind(this)
 
     // token settings and creation
     this._tokenStore = tokenStore(this._host, this._port, token)
@@ -80,15 +83,22 @@ export class YellowJacketServer {
             return this.queries.checkIn(true)
               .then(() => {
                 // set up socket.io server
-                this._app = app || http.createServer((req, res) => {
-                  res.writeHead(200)
-                  res.end(`${this._server}`)
-                })
-                this._app.listen(port)
-                this._io = io || new SocketServer(this._app)
+                if (!server.io && !server.app) {
+                  this._app = http.createServer((req, res) => {
+                    res.writeHead(200)
+                    res.end(`${this._server}`)
+                  })
+                  this._app.listen(port)
+                  this._io = new SocketServer(this._app)
+                } else if (server.app && !server.io) {
+                  this._app = server.app
+                  this._io = new SocketServer(this._app)
+                } else {
+                  this._io = server.io
+                }
 
                 // if the state is online start the listeners
-                if (this.state === ONLINE) this.startListeners(authenticate)
+                if (this.state === ONLINE) this.startListeners(server.useConnection)
                 return this
               })
           })

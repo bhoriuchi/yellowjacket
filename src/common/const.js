@@ -12,6 +12,7 @@ export const LOG_LEVELS = {
 }
 
 export const EVENTS = {
+  CONNECT: 'connect',
   CONNECTION: 'connection',
   CONNECTED: 'connected',
   CONNECT_ERROR: 'connect_error',
@@ -38,7 +39,8 @@ export const EVENTS = {
   MAINTENANCE_EXIT: 'maintenance.exit',
   MAINTENANCE_ERROR: 'maintenance.error',
   MAINTENANCE_OK: 'maintenance.ok',
-  RESULT: 'result'
+  RESULT: 'result',
+  UNAUTHORIZED: 'unauthorized'
 }
 
 // defaults for JWT
