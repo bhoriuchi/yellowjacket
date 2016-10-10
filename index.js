@@ -812,8 +812,85 @@ function maskToken(token) {
   return '***********************';
 }
 
-function startListeners() {
+function addListeners(payload) {
   var _this = this;
+
+  // add the host to the sockets
+  var host = payload.host;
+  var port = payload.port;
+
+  if (!_.has(this._sockets, host + ':' + port)) {
+    _.set(this._sockets, host + ':' + port, socket);
+  }
+
+  // set up remaining listeners now that we are authenticated
+  this.log.trace({ client: client, server: this._server }, 'token is valid, setting up listeners');
+
+  // register post-authentication events
+  _.forEach(_.get(this, 'backend.events.socket'), function (evt, evtName) {
+    if (_.get(evt, 'noAuth') !== true && _.isFunction(evt.handler)) {
+      _this.log.trace({ eventRegistered: evtName }, 'registering post-auth socket event');
+      socket.on(evtName, function (_ref) {
+        var payload = _ref.payload;
+        var requestId = _ref.requestId;
+
+        evt.handler.call(_this, { requestId: requestId, payload: payload, socket: socket });
+      });
+    }
+  });
+
+  socket.on(STATUS, function (_ref2) {
+    var requestId = _ref2.requestId;
+
+    _this.log.trace({ client: client, server: _this._server, event: STATUS }, 'received socket event');
+    socket.emit(STATUS + '.' + requestId, _this.info());
+  });
+
+  socket.on(SCHEDULE$1, function (_ref3) {
+    var payload = _ref3.payload;
+    var requestId = _ref3.requestId;
+
+    _this.log.trace({ client: client, server: _this._server, event: SCHEDULE$1 }, 'received socket event');
+    event.emit(SCHEDULE$1, { requestId: requestId, payload: payload, socket: socket });
+  });
+
+  socket.on(RUN$1, function (_ref4) {
+    var requestId = _ref4.requestId;
+
+    _this.log.trace({ client: client, server: _this._server, event: RUN$1 }, 'received socket event');
+    event.emit(RUN$1, { requestId: requestId, socket: socket });
+  });
+
+  socket.on(STOP$1, function (_ref5) {
+    var requestId = _ref5.requestId;
+    var payload = _ref5.payload;
+
+    options = options || {};
+    _this.log.trace({ client: client, server: _this._server, event: STOP$1 }, 'received socket event');
+    event.emit(STOP$1, { requestId: requestId, payload: payload, socket: socket });
+  });
+
+  socket.on(MAINTENANCE_ENTER$1, function (_ref6) {
+    var requestId = _ref6.requestId;
+    var payload = _ref6.payload;
+
+    _this.log.trace({ client: client, server: _this._server, event: MAINTENANCE_ENTER$1 }, 'received socket event');
+    event.emit(MAINTENANCE_ENTER$1, { requestId: requestId, payload: payload, socket: socket });
+  });
+
+  socket.on(MAINTENANCE_EXIT$1, function (_ref7) {
+    var requestId = _ref7.requestId;
+    var payload = _ref7.payload;
+
+    _this.log.trace({ client: client, server: _this._server, event: MAINTENANCE_EXIT$1 }, 'received socket event');
+    event.emit(MAINTENANCE_EXIT$1, { requestId: requestId, payload: payload, socket: socket });
+  });
+}
+
+function startListeners() {
+  var _this2 = this;
+
+  var authenticate = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
 
   var event = this._emitter;
   this.log.info({ method: 'startListeners', server: this._server }, 'socket server is now listening');
@@ -821,108 +898,42 @@ function startListeners() {
   // handle socket events
   this._io.on(CONNECTION, function (socket) {
     var client = _.get(socket, 'conn.remoteAddress', 'unknown');
-    _this.log.debug({ server: _this._server, client: client }, 'socket.io connection made');
+    _this2.log.debug({ server: _this2._server, client: client }, 'socket.io connection made');
 
     // register pre-authentication events
-    _.forEach(_.get(_this, 'backend.events.socket'), function (evt, evtName) {
+    _.forEach(_.get(_this2, 'backend.events.socket'), function (evt, evtName) {
       if (_.get(evt, 'noAuth') === true && _.isFunction(evt.handler)) {
-        _this.log.trace({ eventRegistered: evtName }, 'registering pre-auth socket event');
-        socket.on(evtName, function (_ref) {
-          var payload = _ref.payload;
-          var requestId = _ref.requestId;
+        _this2.log.trace({ eventRegistered: evtName }, 'registering pre-auth socket event');
+        socket.on(evtName, function (_ref8) {
+          var payload = _ref8.payload;
+          var requestId = _ref8.requestId;
 
-          evt.handler.call(_this, { requestId: requestId, payload: payload, socket: socket });
+          evt.handler.call(_this2, { requestId: requestId, payload: payload, socket: socket });
         });
       }
     });
 
+    // check if not authenticating add listeners and return
+    if (!authenticate) return addListeners.call(_this2, { host: socket.id, port: 1 });
+
     // request authentication
-    _this.log.trace({ client: client, server: _this._server }, 'emitting authentication request');
+    _this2.log.trace({ client: client, server: _this2._server }, 'emitting authentication request');
     socket.emit(AUTHENTICATE);
 
     // on receiving a token, attempt to authenticate it
     socket.on(TOKEN, function (token) {
-      _this.log.trace({ client: client, token: maskToken(token), server: _this._server }, 'received token response');
+      _this2.log.trace({ client: client, token: maskToken(token), server: _this2._server }, 'received token response');
 
       // verify the token
-      var payload = _this.verify(token);
+      var payload = _this2.verify(token);
 
       // if the token is not valid send an error event back
       if (payload.error) {
-        _this.log.debug({ client: client, error: payload, server: _this._server }, 'socket authentication failed');
+        _this2.log.debug({ client: client, error: payload, server: _this2._server }, 'socket authentication failed');
         return payload.expired ? socket.emit(TOKEN_EXPIRED_ERROR, payload) : socket.emit(AUTHENTICATION_ERROR, payload);
       }
 
-      // add the host to the sockets
-      var host = payload.host;
-      var port = payload.port;
-
-      if (!_.has(_this._sockets, host + ':' + port)) {
-        _.set(_this._sockets, host + ':' + port, socket);
-      }
-
-      // set up remaining listeners now that we are authenticated
-      _this.log.trace({ client: client, server: _this._server }, 'token is valid, setting up listeners');
-
-      // register post-authentication events
-      _.forEach(_.get(_this, 'backend.events.socket'), function (evt, evtName) {
-        if (_.get(evt, 'noAuth') !== true && _.isFunction(evt.handler)) {
-          _this.log.trace({ eventRegistered: evtName }, 'registering post-auth socket event');
-          socket.on(evtName, function (_ref2) {
-            var payload = _ref2.payload;
-            var requestId = _ref2.requestId;
-
-            evt.handler.call(_this, { requestId: requestId, payload: payload, socket: socket });
-          });
-        }
-      });
-
-      socket.on(STATUS, function (_ref3) {
-        var requestId = _ref3.requestId;
-
-        _this.log.trace({ client: client, server: _this._server, event: STATUS }, 'received socket event');
-        socket.emit(STATUS + '.' + requestId, _this.info());
-      });
-
-      socket.on(SCHEDULE$1, function (_ref4) {
-        var payload = _ref4.payload;
-        var requestId = _ref4.requestId;
-
-        _this.log.trace({ client: client, server: _this._server, event: SCHEDULE$1 }, 'received socket event');
-        event.emit(SCHEDULE$1, { requestId: requestId, payload: payload, socket: socket });
-      });
-
-      socket.on(RUN$1, function (_ref5) {
-        var requestId = _ref5.requestId;
-
-        _this.log.trace({ client: client, server: _this._server, event: RUN$1 }, 'received socket event');
-        event.emit(RUN$1, { requestId: requestId, socket: socket });
-      });
-
-      socket.on(STOP$1, function (_ref6) {
-        var requestId = _ref6.requestId;
-        var payload = _ref6.payload;
-
-        options = options || {};
-        _this.log.trace({ client: client, server: _this._server, event: STOP$1 }, 'received socket event');
-        event.emit(STOP$1, { requestId: requestId, payload: payload, socket: socket });
-      });
-
-      socket.on(MAINTENANCE_ENTER$1, function (_ref7) {
-        var requestId = _ref7.requestId;
-        var payload = _ref7.payload;
-
-        _this.log.trace({ client: client, server: _this._server, event: MAINTENANCE_ENTER$1 }, 'received socket event');
-        event.emit(MAINTENANCE_ENTER$1, { requestId: requestId, payload: payload, socket: socket });
-      });
-
-      socket.on(MAINTENANCE_EXIT$1, function (_ref8) {
-        var requestId = _ref8.requestId;
-        var payload = _ref8.payload;
-
-        _this.log.trace({ client: client, server: _this._server, event: MAINTENANCE_EXIT$1 }, 'received socket event');
-        event.emit(MAINTENANCE_EXIT$1, { requestId: requestId, payload: payload, socket: socket });
-      });
+      addListeners.call(_this2, payload);
 
       socket.emit(AUTHENTICATED);
     });
@@ -931,9 +942,9 @@ function startListeners() {
   // register local events
   _.forEach(_.get(this, 'backend.events.local'), function (evt, evtName) {
     if (_.isFunction(evt.handler)) {
-      _this.log.trace({ eventRegistered: evtName }, 'registering local event');
+      _this2.log.trace({ eventRegistered: evtName }, 'registering local event');
       event.on(evtName, function (payload) {
-        evt.handler.call(_this, payload);
+        evt.handler.call(_this2, payload);
       });
     }
   });
@@ -944,16 +955,16 @@ function startListeners() {
     var payload = _ref9.payload;
     var socket = _ref9.socket;
 
-    _this.log.trace({ event: SCHEDULE$1, requestId: requestId }, 'received local event');
-    _this.schedule(payload, socket, requestId);
+    _this2.log.trace({ event: SCHEDULE$1, requestId: requestId }, 'received local event');
+    _this2.schedule(payload, socket, requestId);
   });
 
   event.on(RUN$1, function (_ref10) {
     var requestId = _ref10.requestId;
     var socket = _ref10.socket;
 
-    _this.log.trace({ event: RUN$1, requestId: requestId }, 'received local event');
-    _this.run(socket, requestId);
+    _this2.log.trace({ event: RUN$1, requestId: requestId }, 'received local event');
+    _this2.run(socket, requestId);
   });
 
   event.on(STOP$1, function (_ref11) {
@@ -961,8 +972,8 @@ function startListeners() {
     var payload = _ref11.payload;
     var socket = _ref11.socket;
 
-    _this.log.trace({ event: STOP$1, requestId: requestId }, 'received local event');
-    _this.stop(payload, socket, requestId);
+    _this2.log.trace({ event: STOP$1, requestId: requestId }, 'received local event');
+    _this2.stop(payload, socket, requestId);
   });
 
   event.on(MAINTENANCE_ENTER$1, function (_ref12) {
@@ -970,8 +981,8 @@ function startListeners() {
     var payload = _ref12.payload;
     var socket = _ref12.socket;
 
-    _this.log.trace({ event: MAINTENANCE_ENTER$1, requestId: requestId }, 'received local event');
-    _this.maintenance(true, payload, socket, requestId);
+    _this2.log.trace({ event: MAINTENANCE_ENTER$1, requestId: requestId }, 'received local event');
+    _this2.maintenance(true, payload, socket, requestId);
   });
 
   event.on(MAINTENANCE_EXIT$1, function (_ref13) {
@@ -979,8 +990,8 @@ function startListeners() {
     var payload = _ref13.payload;
     var socket = _ref13.socket;
 
-    _this.log.trace({ event: MAINTENANCE_EXIT$1, requestId: requestId }, 'received local event');
-    _this.maintenance(false, payload, socket, requestId);
+    _this2.log.trace({ event: MAINTENANCE_EXIT$1, requestId: requestId }, 'received local event');
+    _this2.maintenance(false, payload, socket, requestId);
   });
 
   this.checkQueue();
@@ -1331,7 +1342,7 @@ var CONNECT_TIMEOUT = EVENTS.CONNECT_TIMEOUT;
 var TOKEN_EXPIRED_ERROR$1 = EVENTS.TOKEN_EXPIRED_ERROR;
 
 
-function addListeners(socket, listeners, requestId) {
+function addListeners$1(socket, listeners, requestId) {
   var _this = this;
 
   _.forEach(listeners, function (handler, name) {
@@ -1369,7 +1380,7 @@ function emit(host, port, event, payload) {
   // if it does, emit the event
   if (socket) {
     this.log.trace({ emitter: this._server }, 'socket found');
-    addListeners.call(this, socket, listeners, requestId);
+    addListeners$1.call(this, socket, listeners, requestId);
     this.log.debug({ emitter: this._server, target: host + ':' + port, event: event }, 'emitting event on EXISTING connection');
     return socket.emit(event, { payload: payload, requestId: requestId });
   }
@@ -1393,7 +1404,7 @@ function emit(host, port, event, payload) {
   });
 
   socket.on(AUTHENTICATED$1, function () {
-    addListeners.call(_this2, socket, listeners, requestId);
+    addListeners$1.call(_this2, socket, listeners, requestId);
     _this2.log.debug({ emitter: _this2._server, target: host + ':' + port, event: event }, 'emitting event on NEW connection');
     socket.emit(event, { payload: payload, requestId: requestId });
   });
@@ -1439,6 +1450,9 @@ var YellowJacketServer = function () {
     var port = options.port;
     var token = options.token;
     var socket = options.socket;
+    var app = options.app;
+    var io = options.io;
+    var authenticate = options.authenticate;
 
     socket = socket || { secure: false, timeout: 2000 };
 
@@ -1497,15 +1511,15 @@ var YellowJacketServer = function () {
         // check in
         return _this.queries.checkIn(true).then(function () {
           // set up socket.io server
-          _this._app = http.createServer(function (req, res) {
+          _this._app = app || http.createServer(function (req, res) {
             res.writeHead(200);
             res.end('' + _this._server);
           });
           _this._app.listen(port);
-          _this._io = new SocketServer(_this._app);
+          _this._io = io || new SocketServer(_this._app);
 
           // if the state is online start the listeners
-          if (_this.state === ONLINE) _this.startListeners();
+          if (_this.state === ONLINE) _this.startListeners(authenticate);
           return _this;
         });
       });

@@ -19,7 +19,7 @@ let { DISCONNECT, RUN } = EVENTS
 
 export class YellowJacketServer {
   constructor (backend, options = {}) {
-    let { host, port, token, socket } = options
+    let { host, port, token, socket, app, io, authenticate } = options
     socket = socket || { secure: false, timeout: 2000 }
 
     backend._logLevel = this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info
@@ -80,15 +80,15 @@ export class YellowJacketServer {
             return this.queries.checkIn(true)
               .then(() => {
                 // set up socket.io server
-                this._app = http.createServer((req, res) => {
+                this._app = app || http.createServer((req, res) => {
                   res.writeHead(200)
                   res.end(`${this._server}`)
                 })
                 this._app.listen(port)
-                this._io = new SocketServer(this._app)
+                this._io = io || new SocketServer(this._app)
 
                 // if the state is online start the listeners
-                if (this.state === ONLINE) this.startListeners()
+                if (this.state === ONLINE) this.startListeners(authenticate)
                 return this
               })
           })
