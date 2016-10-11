@@ -25,7 +25,7 @@ export class YellowjacketTokenStore {
   }
 
   get secret () {
-    return this._config.secret
+    return this._signingKey
   }
 
   renewIfExpired () {

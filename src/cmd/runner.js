@@ -33,10 +33,6 @@ export function updateRunner (args) {
 
 export function startRunner (options) {
   return YellowJacketServer(this, options)
-    .then((server) => {
-      this.server = server
-      return server
-    })
 }
 
 export function scheduleRunner ({ host, port, action, context, loglevel = LOG_LEVELS.info }) {

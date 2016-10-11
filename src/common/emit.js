@@ -55,34 +55,6 @@ export default function emit (host, port, event, payload, listeners = {}, errorH
         console.log('unauth', msg)
       })
   })
-
-  // listen for authentication events
-  /*
-  socket.on(AUTHENTICATE, () => {
-    this.log.trace({ emitter: this._server }, 'got authentication request, emitting token')
-    socket.emit(TOKEN, this._token)
-  })
-
-  // renew token if expired
-  socket.on(TOKEN_EXPIRED_ERROR, () => {
-    this.log.trace({ emitter: this._server }, 'renewing expired token')
-    socket.emit(TOKEN, this.renewToken())
-  })
-
-  socket.on(AUTHENTICATED, () => {
-    addListeners.call(this, socket, listeners, requestId)
-    this.log.debug({ emitter: this._server, target: `${host}:${port}`, event }, 'emitting event on NEW connection')
-    socket.emit(event, { payload, requestId })
-  })
-
-  // authentication error
-  socket.on(AUTHENTICATION_ERROR, (error) => {
-    this.log.trace({ emitter: this._server, error }, 'authentication error')
-    this.disconnectSocket(host, port)
-    return errorHandler(error)
-  })
-  */
-
   // listen for errors
   socket.on(CONNECT_ERROR, () => {
     let s = _.get(this._sockets, `${host}:${port}`)

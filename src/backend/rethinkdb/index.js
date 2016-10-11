@@ -8,6 +8,7 @@ import basicLogger from '../../common/basicLogger'
 import cmd from '../../cmd/index'
 import cli from '../../cli/index'
 import client from '../../client/index'
+import server from '../../server/index'
 import CONST from '../../common/const'
 
 export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend {
@@ -66,6 +67,10 @@ export class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend
 
     this.client = (options) => {
       return client(this, options)
+    }
+
+    this.createServer = (options) => {
+      return server(this, options)
     }
   }
 }

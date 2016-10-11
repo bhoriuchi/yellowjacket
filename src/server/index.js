@@ -40,8 +40,11 @@ export class YellowJacketServer {
       throw new Error('host is invalid or not specified')
     }
 
+    console.log(options)
+
     // store props
     this.CONST = CONST
+    backend.server = this
     this.backend = backend
     this.actions = backend.actions
     this.options = options
@@ -124,8 +127,8 @@ export class YellowJacketServer {
     return _.isFunction(_.get(obj, 'then')) && _.isFunction(_.get(obj, 'catch'))
   }
 
-  startListeners () {
-    startListeners.call(this)
+  startListeners (useConnection) {
+    startListeners.call(this, useConnection)
   }
 
   emit (host, port, event, payload, listener, cb, timeout) {

@@ -65,6 +65,7 @@ export default function startListeners (useConnection = false) {
 
   // handle socket events
   if (!useConnection) {
+    console.log('NOT USING CONNECTION')
     this._io.sockets
       .on(CONNECTION, socketioJwt.authorize({
         secret: this._tokenStore.secret,

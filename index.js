@@ -791,7 +791,7 @@ var YellowjacketTokenStore = function () {
   }, {
     key: 'secret',
     get: function get() {
-      return this._config.secret;
+      return this._signingKey;
     }
   }]);
   return YellowjacketTokenStore;
@@ -893,6 +893,7 @@ function startListeners() {
 
   // handle socket events
   if (!useConnection) {
+    console.log('NOT USING CONNECTION');
     this._io.sockets.on(CONNECTION, socketioJwt.authorize({
       secret: this._tokenStore.secret,
       callback: false
@@ -1364,31 +1365,6 @@ function emit(host, port, event, payload) {
       console.log('unauth', msg);
     });
   });
-
-  // listen for authentication events
-  /*
-  socket.on(AUTHENTICATE, () => {
-    this.log.trace({ emitter: this._server }, 'got authentication request, emitting token')
-    socket.emit(TOKEN, this._token)
-  })
-   // renew token if expired
-  socket.on(TOKEN_EXPIRED_ERROR, () => {
-    this.log.trace({ emitter: this._server }, 'renewing expired token')
-    socket.emit(TOKEN, this.renewToken())
-  })
-   socket.on(AUTHENTICATED, () => {
-    addListeners.call(this, socket, listeners, requestId)
-    this.log.debug({ emitter: this._server, target: `${host}:${port}`, event }, 'emitting event on NEW connection')
-    socket.emit(event, { payload, requestId })
-  })
-   // authentication error
-  socket.on(AUTHENTICATION_ERROR, (error) => {
-    this.log.trace({ emitter: this._server, error }, 'authentication error')
-    this.disconnectSocket(host, port)
-    return errorHandler(error)
-  })
-  */
-
   // listen for errors
   socket.on(CONNECT_ERROR, function () {
     var s = _.get(_this2._sockets, host + ':' + port);
@@ -1444,8 +1420,11 @@ var YellowJacketServer = function () {
       throw new Error('host is invalid or not specified');
     }
 
+    console.log(options);
+
     // store props
     this.CONST = CONST;
+    backend.server = this;
     this.backend = backend;
     this.actions = backend.actions;
     this.options = options;
@@ -1529,8 +1508,8 @@ var YellowJacketServer = function () {
     }
   }, {
     key: 'startListeners',
-    value: function startListeners$$() {
-      startListeners.call(this);
+    value: function startListeners$$(useConnection) {
+      startListeners.call(this, useConnection);
     }
   }, {
     key: 'emit',
@@ -1747,12 +1726,7 @@ function updateRunner$1(args) {
 }
 
 function startRunner(options) {
-  var _this = this;
-
-  return YellowJacketServer$1(this, options).then(function (server) {
-    _this.server = server;
-    return server;
-  });
+  return YellowJacketServer$1(this, options);
 }
 
 function scheduleRunner(_ref) {
@@ -2113,6 +2087,10 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 
     _this.client = function (options) {
       return YellowjacketClient$1(_this, options);
+    };
+
+    _this.createServer = function (options) {
+      return YellowJacketServer$1(_this, options);
     };
     return _this;
   }
