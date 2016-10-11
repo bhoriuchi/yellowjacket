@@ -40,8 +40,6 @@ export class YellowJacketServer {
       throw new Error('host is invalid or not specified')
     }
 
-    console.log(options)
-
     // store props
     this.CONST = CONST
     backend.server = this
