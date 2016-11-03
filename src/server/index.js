@@ -1,4 +1,5 @@
 import _ from 'lodash'
+import os from 'os'
 import Events from 'events'
 import http from 'http'
 import SocketServer from 'socket.io'
@@ -47,9 +48,8 @@ export class YellowJacketServer {
     this.actions = backend.actions
     this.options = options
     this.scheduler = backend.scheduler || this.defaultScheduler
-    this.queries = queries(this)
     this.lib = backend.lib
-    this._host = host || 'localhost'
+    this._host = host || os.hostname()
     this._port = port || 8080
     this._server = `${this._host}:${this._port}`
     this._emitter = new Events.EventEmitter()
@@ -57,6 +57,7 @@ export class YellowJacketServer {
     this._socketTimeout = socket.timeout || 2000
     this._secureSocket = Boolean(socket.secure)
     this._running = {}
+    this.queries = queries(this)
     this.addListeners = addListeners.bind(this)
 
     // token settings and creation

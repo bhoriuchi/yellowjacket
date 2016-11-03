@@ -8,6 +8,7 @@ var _ = _interopDefault(require('lodash'));
 var factory = _interopDefault(require('graphql-factory'));
 var graphqlFactoryBackend = require('graphql-factory-backend');
 var FactoryTypePlugin = _interopDefault(require('graphql-factory-types'));
+var os = _interopDefault(require('os'));
 var Events = _interopDefault(require('events'));
 var http = _interopDefault(require('http'));
 var SocketServer = _interopDefault(require('socket.io'));
@@ -33,8 +34,6 @@ var RunnerNodeStateEnum = {
 var _StateEnum$values = RunnerNodeStateEnum.values;
 var OFFLINE = _StateEnum$values.OFFLINE;
 var MAINTENANCE = _StateEnum$values.MAINTENANCE;
-
-
 function checkinRunnerNode (backend) {
   return function (source, args, context, info) {
     var q = backend.q;
@@ -313,8 +312,6 @@ function queries (backend) {
 var _StateEnum$values$1 = RunnerNodeStateEnum.values;
 var OFFLINE$1 = _StateEnum$values$1.OFFLINE;
 var MAINTENANCE$1 = _StateEnum$values$1.MAINTENANCE;
-
-
 var RunnerNode = {
   fields: {
     id: {
@@ -813,8 +810,6 @@ var STOP$1 = EVENTS.STOP;
 var MAINTENANCE_ENTER$1 = EVENTS.MAINTENANCE_ENTER;
 var MAINTENANCE_EXIT$1 = EVENTS.MAINTENANCE_EXIT;
 var TOKEN_EXPIRED_ERROR = EVENTS.TOKEN_EXPIRED_ERROR;
-
-
 function addListeners(socket) {
   var _this = this;
 
@@ -827,8 +822,8 @@ function addListeners(socket) {
     if (_.isFunction(evt.handler)) {
       _this.log.trace({ eventRegistered: evtName }, 'registering post-auth socket event');
       socket.on(evtName, function (_ref) {
-        var payload = _ref.payload;
-        var requestId = _ref.requestId;
+        var payload = _ref.payload,
+            requestId = _ref.requestId;
 
         evt.handler.call(_this, { requestId: requestId, payload: payload, socket: socket });
       });
@@ -843,8 +838,8 @@ function addListeners(socket) {
   });
 
   socket.on(SCHEDULE$1, function (_ref3) {
-    var payload = _ref3.payload;
-    var requestId = _ref3.requestId;
+    var payload = _ref3.payload,
+        requestId = _ref3.requestId;
 
     _this.log.trace({ client: client, server: _this._server, event: SCHEDULE$1 }, 'received socket event');
     event.emit(SCHEDULE$1, { requestId: requestId, payload: payload, socket: socket });
@@ -858,8 +853,8 @@ function addListeners(socket) {
   });
 
   socket.on(STOP$1, function (_ref5) {
-    var requestId = _ref5.requestId;
-    var payload = _ref5.payload;
+    var requestId = _ref5.requestId,
+        payload = _ref5.payload;
 
     options = options || {};
     _this.log.trace({ client: client, server: _this._server, event: STOP$1 }, 'received socket event');
@@ -867,16 +862,16 @@ function addListeners(socket) {
   });
 
   socket.on(MAINTENANCE_ENTER$1, function (_ref6) {
-    var requestId = _ref6.requestId;
-    var payload = _ref6.payload;
+    var requestId = _ref6.requestId,
+        payload = _ref6.payload;
 
     _this.log.trace({ client: client, server: _this._server, event: MAINTENANCE_ENTER$1 }, 'received socket event');
     event.emit(MAINTENANCE_ENTER$1, { requestId: requestId, payload: payload, socket: socket });
   });
 
   socket.on(MAINTENANCE_EXIT$1, function (_ref7) {
-    var requestId = _ref7.requestId;
-    var payload = _ref7.payload;
+    var requestId = _ref7.requestId,
+        payload = _ref7.payload;
 
     _this.log.trace({ client: client, server: _this._server, event: MAINTENANCE_EXIT$1 }, 'received socket event');
     event.emit(MAINTENANCE_EXIT$1, { requestId: requestId, payload: payload, socket: socket });
@@ -914,44 +909,44 @@ function startListeners() {
 
   // handle local events
   event.on(SCHEDULE$1, function (_ref8) {
-    var requestId = _ref8.requestId;
-    var payload = _ref8.payload;
-    var socket = _ref8.socket;
+    var requestId = _ref8.requestId,
+        payload = _ref8.payload,
+        socket = _ref8.socket;
 
     _this2.log.trace({ event: SCHEDULE$1, requestId: requestId }, 'received local event');
     _this2.schedule(payload, socket, requestId);
   });
 
   event.on(RUN$1, function (_ref9) {
-    var requestId = _ref9.requestId;
-    var socket = _ref9.socket;
+    var requestId = _ref9.requestId,
+        socket = _ref9.socket;
 
     _this2.log.trace({ event: RUN$1, requestId: requestId }, 'received local event');
     _this2.run(socket, requestId);
   });
 
   event.on(STOP$1, function (_ref10) {
-    var requestId = _ref10.requestId;
-    var payload = _ref10.payload;
-    var socket = _ref10.socket;
+    var requestId = _ref10.requestId,
+        payload = _ref10.payload,
+        socket = _ref10.socket;
 
     _this2.log.trace({ event: STOP$1, requestId: requestId }, 'received local event');
     _this2.stop(payload, socket, requestId);
   });
 
   event.on(MAINTENANCE_ENTER$1, function (_ref11) {
-    var requestId = _ref11.requestId;
-    var payload = _ref11.payload;
-    var socket = _ref11.socket;
+    var requestId = _ref11.requestId,
+        payload = _ref11.payload,
+        socket = _ref11.socket;
 
     _this2.log.trace({ event: MAINTENANCE_ENTER$1, requestId: requestId }, 'received local event');
     _this2.maintenance(true, payload, socket, requestId);
   });
 
   event.on(MAINTENANCE_EXIT$1, function (_ref12) {
-    var requestId = _ref12.requestId;
-    var payload = _ref12.payload;
-    var socket = _ref12.socket;
+    var requestId = _ref12.requestId,
+        payload = _ref12.payload,
+        socket = _ref12.socket;
 
     _this2.log.trace({ event: MAINTENANCE_EXIT$1, requestId: requestId }, 'received local event');
     _this2.maintenance(false, payload, socket, requestId);
@@ -968,7 +963,6 @@ var SCHEDULE_ERROR$2 = EVENTS.SCHEDULE_ERROR;
 var SCHEDULE_ACCEPT$1 = EVENTS.SCHEDULE_ACCEPT;
 var RUN$2 = EVENTS.RUN;
 var OK$2 = EVENTS.OK;
-
 var source = 'server/schedule';
 
 // gets the next runner in the list and verifies that it is online
@@ -1093,8 +1087,8 @@ function schedule(payload, socket, requestId) {
     return Promise.reject('runner in state ' + this.state + ' and cannot schedule tasks');
   }
 
-  var action = payload.action;
-  var context = payload.context;
+  var action = payload.action,
+      context = payload.context;
 
   // validate that the action is valid
 
@@ -1111,8 +1105,6 @@ var ONLINE$2 = _RunnerNodeStateEnum$$1.ONLINE;
 var MAINTENANCE$3 = _RunnerNodeStateEnum$$1.MAINTENANCE;
 var MAINTENANCE_OK$1 = EVENTS.MAINTENANCE_OK;
 var MAINTENANCE_ERROR$1 = EVENTS.MAINTENANCE_ERROR;
-
-
 function maintenance(enter, reason, socket, requestId) {
   if (enter && this.state === ONLINE$2) {
     this.log.info({ server: this._server, reason: reason }, 'entering maintenance');
@@ -1185,9 +1177,9 @@ function doneTask(taskId) {
 function runTask(task) {
   var _this4 = this;
 
-  var id = task.id;
-  var action = task.action;
-  var context = task.context;
+  var id = task.id,
+      action = task.action,
+      context = task.context;
 
   if (!_.has(this.actions, action)) return this.log.error({ server: this._server, action: action }, 'action is not valid');
 
@@ -1305,8 +1297,6 @@ var TOKEN$1 = EVENTS.TOKEN;
 var CONNECT_ERROR = EVENTS.CONNECT_ERROR;
 var CONNECT_TIMEOUT = EVENTS.CONNECT_TIMEOUT;
 var TOKEN_EXPIRED_ERROR$1 = EVENTS.TOKEN_EXPIRED_ERROR;
-
-
 function addListeners$1(socket, listeners, requestId) {
   var _this = this;
 
@@ -1387,19 +1377,17 @@ var ONLINE = _RunnerNodeStateEnum$.ONLINE;
 var MAINTENANCE$2 = _RunnerNodeStateEnum$.MAINTENANCE;
 var DISCONNECT = EVENTS.DISCONNECT;
 var RUN = EVENTS.RUN;
-
-
 var YellowJacketServer = function () {
   function YellowJacketServer(backend) {
     var _this = this;
 
     var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     classCallCheck(this, YellowJacketServer);
-    var host = options.host;
-    var port = options.port;
-    var token = options.token;
-    var socket = options.socket;
-    var server = options.server;
+    var host = options.host,
+        port = options.port,
+        token = options.token,
+        socket = options.socket,
+        server = options.server;
 
     socket = socket || { secure: false, timeout: 2000 };
     server = server || {};
@@ -1427,9 +1415,8 @@ var YellowJacketServer = function () {
     this.actions = backend.actions;
     this.options = options;
     this.scheduler = backend.scheduler || this.defaultScheduler;
-    this.queries = queries(this);
     this.lib = backend.lib;
-    this._host = host || 'localhost';
+    this._host = host || os.hostname();
     this._port = port || 8080;
     this._server = this._host + ':' + this._port;
     this._emitter = new Events.EventEmitter();
@@ -1437,6 +1424,7 @@ var YellowJacketServer = function () {
     this._socketTimeout = socket.timeout || 2000;
     this._secureSocket = Boolean(socket.secure);
     this._running = {};
+    this.queries = queries(this);
     this.addListeners = addListeners.bind(this);
 
     // token settings and creation
@@ -1616,16 +1604,14 @@ function YellowJacketServer$1 (backend, options) {
 
 var DISCONNECT$1 = EVENTS.DISCONNECT;
 var OK$3 = EVENTS.OK;
-
-
 var YellowjacketClient = function () {
   function YellowjacketClient(backend) {
     var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     classCallCheck(this, YellowjacketClient);
-    var socket = options.socket;
-    var token = options.token;
-    var host = options.host;
-    var port = options.port;
+    var socket = options.socket,
+        token = options.token,
+        host = options.host,
+        port = options.port;
 
 
     this._logLevel = _.get(LOG_LEVELS, options.loglevel) || LOG_LEVELS.info;
@@ -1691,18 +1677,16 @@ var MAINTENANCE_ERROR = EVENTS.MAINTENANCE_ERROR;
 var MAINTENANCE_OK = EVENTS.MAINTENANCE_OK;
 var STOPPING = EVENTS.STOPPING;
 var STOPPING_ACK = EVENTS.STOPPING_ACK;
-
-
 function listRunner(args) {
   return this.queries.readRunner(args);
 }
 
 function addRunner(args) {
   if (!_.isObject(args)) throw new Error('No options provided');
-  var host = args.host;
-  var port = args.port;
-  var zone = args.zone;
-  var metadata = args.metadata;
+  var host = args.host,
+      port = args.port,
+      zone = args.zone,
+      metadata = args.metadata;
 
   var payload = _.omitBy({ host: host, port: port, zone: zone, metadata: metadata }, function (v) {
     return v === undefined;
@@ -1728,12 +1712,12 @@ function startRunner(options) {
 }
 
 function scheduleRunner(_ref) {
-  var host = _ref.host;
-  var port = _ref.port;
-  var action = _ref.action;
-  var context = _ref.context;
-  var _ref$loglevel = _ref.loglevel;
-  var loglevel = _ref$loglevel === undefined ? LOG_LEVELS.info : _ref$loglevel;
+  var host = _ref.host,
+      port = _ref.port,
+      action = _ref.action,
+      context = _ref.context,
+      _ref$loglevel = _ref.loglevel,
+      loglevel = _ref$loglevel === undefined ? LOG_LEVELS.info : _ref$loglevel;
 
   var client = YellowjacketClient$1(this, { loglevel: loglevel });
 
@@ -1751,10 +1735,10 @@ function scheduleRunner(_ref) {
 }
 
 function stopRunner(_ref2) {
-  var host = _ref2.host;
-  var port = _ref2.port;
-  var _ref2$loglevel = _ref2.loglevel;
-  var loglevel = _ref2$loglevel === undefined ? LOG_LEVELS.info : _ref2$loglevel;
+  var host = _ref2.host,
+      port = _ref2.port,
+      _ref2$loglevel = _ref2.loglevel,
+      loglevel = _ref2$loglevel === undefined ? LOG_LEVELS.info : _ref2$loglevel;
 
   var client = YellowjacketClient$1(this, { loglevel: loglevel });
 
@@ -1769,12 +1753,12 @@ function stopRunner(_ref2) {
 }
 
 function maintenanceRunner(_ref3) {
-  var host = _ref3.host;
-  var port = _ref3.port;
-  var exit = _ref3.exit;
-  var reason = _ref3.reason;
-  var _ref3$loglevel = _ref3.loglevel;
-  var loglevel = _ref3$loglevel === undefined ? LOG_LEVELS.info : _ref3$loglevel;
+  var host = _ref3.host,
+      port = _ref3.port,
+      exit = _ref3.exit,
+      reason = _ref3.reason,
+      _ref3$loglevel = _ref3.loglevel,
+      loglevel = _ref3$loglevel === undefined ? LOG_LEVELS.info : _ref3$loglevel;
 
   var client = YellowjacketClient$1(this, { loglevel: loglevel });
 
@@ -1810,9 +1794,9 @@ function cmd(command) {
   return new Promise(function (resolve, reject) {
     if (!_.isObject(command)) return reject(Error('Invalid command object'));
 
-    var target = command.target;
-    var action = command.action;
-    var options = command.options;
+    var target = command.target,
+        action = command.action,
+        options = command.options;
 
     action = action || null;
 
@@ -2038,10 +2022,10 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     };
 
     // add actions and scheduler and logger
-    var _config = config;
-    var actions = _config.actions;
-    var scheduler = _config.scheduler;
-    var logger = _config.logger;
+    var _config = config,
+        actions = _config.actions,
+        scheduler = _config.scheduler,
+        logger = _config.logger;
 
 
     if (_.isFunction(actions) || _.isObject(actions)) {
