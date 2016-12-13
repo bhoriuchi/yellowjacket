@@ -1529,6 +1529,11 @@ var YellowJacketServer = function () {
       return run.call(this, socket, requestId);
     }
   }, {
+    key: 'done',
+    value: function done(err, taskId, status, data) {
+      return doneTask.call(this, taskId)(err, status, data);
+    }
+  }, {
     key: 'stop',
     value: function stop$$(options, socket, requestId) {
       return stop.call(this, options, socket, requestId);
