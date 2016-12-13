@@ -62,6 +62,16 @@ export function runTask (task) {
     })
 }
 
+// resumes a task
+export function resumeTask (taskId, data) {
+  return this.queries.readQueue({ id: taskId })
+    .then((tasks) => {
+      let task = _.get(tasks, '[0]')
+      if (!task) throw new Error(`task ${taskId} not found`)
+      return runTask.call(this, _.merge({}, task, { resume: true, data }))
+    })
+}
+
 // gets the tasks assigned to this runner
 export function getAssigned () {
   return this.queries.readQueue({ runner: this.id, state: Enum(SCHEDULED) })

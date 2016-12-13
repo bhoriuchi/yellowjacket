@@ -13,7 +13,7 @@ import { addListeners } from './startListeners'
 import scheduleMethod from './schedule'
 import maintenanceMethod from './maintenance'
 import runMethod from './run'
-import { doneTask } from './run'
+import { doneTask, resumeTask } from './run'
 import stopMethod from './stop'
 import emitMethod from '../common/emit'
 import { RunnerNodeStateEnum } from '../graphql/types/index'
@@ -151,6 +151,10 @@ export class YellowJacketServer {
 
   done (err, taskId, status, data) {
     return doneTask.call(this, taskId)(err, status, data)
+  }
+
+  resume (taskId, data) {
+    return resumeTask.call(this, taskId, data)
   }
 
   stop (options, socket, requestId) {

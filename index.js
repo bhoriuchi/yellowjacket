@@ -1209,18 +1209,29 @@ function runTask(task) {
   });
 }
 
-// gets the tasks assigned to this runner
-function getAssigned() {
+// resumes a task
+function resumeTask(taskId, data) {
   var _this5 = this;
 
+  return this.queries.readQueue({ id: taskId }).then(function (tasks) {
+    var task = _.get(tasks, '[0]');
+    if (!task) throw new Error('task ' + taskId + ' not found');
+    return runTask.call(_this5, _.merge({}, task, { resume: true, data: data }));
+  });
+}
+
+// gets the tasks assigned to this runner
+function getAssigned() {
+  var _this6 = this;
+
   return this.queries.readQueue({ runner: this.id, state: Enum$1(SCHEDULED$1) }).then(function (tasks) {
-    _this5.log.trace({ server: _this5._server }, 'acquired tasks');
+    _this6.log.trace({ server: _this6._server }, 'acquired tasks');
     _.forEach(tasks, function (task) {
       // do not run the task if its already running
-      if (!_.has(_this5._running, task.id)) runTask.call(_this5, task);
+      if (!_.has(_this6._running, task.id)) runTask.call(_this6, task);
     });
   }).catch(function (error) {
-    _this5.log.debug({ server: _this5._server, error: error }, 'failed to get assigned tasks');
+    _this6.log.debug({ server: _this6._server, error: error }, 'failed to get assigned tasks');
   });
 }
 
@@ -1531,6 +1542,11 @@ var YellowJacketServer = function () {
     key: 'done',
     value: function done(err, taskId, status, data) {
       return doneTask.call(this, taskId)(err, status, data);
+    }
+  }, {
+    key: 'resume',
+    value: function resume(taskId, data) {
+      return resumeTask.call(this, taskId, data);
     }
   }, {
     key: 'stop',
