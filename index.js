@@ -810,6 +810,8 @@ var STOP$1 = EVENTS.STOP;
 var MAINTENANCE_ENTER$1 = EVENTS.MAINTENANCE_ENTER;
 var MAINTENANCE_EXIT$1 = EVENTS.MAINTENANCE_EXIT;
 var TOKEN_EXPIRED_ERROR = EVENTS.TOKEN_EXPIRED_ERROR;
+var LOCAL_REQUEST = 'LOCAL_REQUEST';
+
 function addListeners(socket) {
   var _this = this;
 
@@ -888,13 +890,15 @@ function startListeners() {
 
   // handle socket events
   if (!useConnection) {
-    console.log('NOT USING CONNECTION');
+    this.log.info({ server: this._server }, 'Server running in STANDALONE mode, token authentication ' + 'will be required to establish a socket');
     this._io.sockets.on(CONNECTION, socketioJwt.authorize({
       secret: this._tokenStore.secret,
       callback: false
     })).on(AUTHENTICATED, function (socket) {
       return addListeners.call(_this2, socket);
     });
+  } else {
+    this.log.info({ server: this._server }, 'Server running in INTEGRATED mode, tokens ' + 'should be issued by the application');
   }
 
   // register local events
@@ -913,6 +917,7 @@ function startListeners() {
         payload = _ref8.payload,
         socket = _ref8.socket;
 
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId;
     _this2.log.trace({ event: SCHEDULE$1, requestId: requestId }, 'received local event');
     _this2.schedule(payload, socket, requestId);
   });
@@ -921,6 +926,7 @@ function startListeners() {
     var requestId = _ref9.requestId,
         socket = _ref9.socket;
 
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId;
     _this2.log.trace({ event: RUN$1, requestId: requestId }, 'received local event');
     _this2.run(socket, requestId);
   });
@@ -930,6 +936,7 @@ function startListeners() {
         payload = _ref10.payload,
         socket = _ref10.socket;
 
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId;
     _this2.log.trace({ event: STOP$1, requestId: requestId }, 'received local event');
     _this2.stop(payload, socket, requestId);
   });
@@ -939,6 +946,7 @@ function startListeners() {
         payload = _ref11.payload,
         socket = _ref11.socket;
 
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId;
     _this2.log.trace({ event: MAINTENANCE_ENTER$1, requestId: requestId }, 'received local event');
     _this2.maintenance(true, payload, socket, requestId);
   });
@@ -948,6 +956,7 @@ function startListeners() {
         payload = _ref12.payload,
         socket = _ref12.socket;
 
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId;
     _this2.log.trace({ event: MAINTENANCE_EXIT$1, requestId: requestId }, 'received local event');
     _this2.maintenance(false, payload, socket, requestId);
   });

@@ -7,6 +7,8 @@ let {
   MAINTENANCE_ENTER, MAINTENANCE_EXIT, TOKEN_EXPIRED_ERROR
 } = EVENTS
 
+const LOCAL_REQUEST = 'LOCAL_REQUEST'
+
 export function maskToken (token) {
   if (_.isString(token)) return token.replace(/(^\w{0,3}).*/, '$1***********************')
   return '***********************'
@@ -65,13 +67,17 @@ export default function startListeners (useConnection = false) {
 
   // handle socket events
   if (!useConnection) {
-    console.log('NOT USING CONNECTION')
+    this.log.info({ server: this._server }, 'Server running in STANDALONE mode, token authentication ' +
+      'will be required to establish a socket')
     this._io.sockets
       .on(CONNECTION, socketioJwt.authorize({
         secret: this._tokenStore.secret,
         callback: false
       }))
       .on(AUTHENTICATED, (socket) => addListeners.call(this, socket))
+  } else {
+    this.log.info({ server: this._server }, 'Server running in INTEGRATED mode, tokens ' +
+      'should be issued by the application')
   }
 
   // register local events
@@ -86,26 +92,31 @@ export default function startListeners (useConnection = false) {
 
   // handle local events
   event.on(SCHEDULE, ({ requestId, payload, socket }) => {
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId
     this.log.trace({ event: SCHEDULE, requestId }, 'received local event')
     this.schedule(payload, socket, requestId)
   })
 
   event.on(RUN, ({ requestId, socket }) => {
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId
     this.log.trace({ event: RUN, requestId  }, 'received local event')
     this.run(socket, requestId)
   })
 
   event.on(STOP, ({ requestId, payload, socket }) => {
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId
     this.log.trace({ event: STOP, requestId  }, 'received local event')
     this.stop(payload, socket, requestId)
   })
 
   event.on(MAINTENANCE_ENTER, ({ requestId, payload, socket }) => {
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId
     this.log.trace({ event: MAINTENANCE_ENTER, requestId  }, 'received local event')
     this.maintenance(true, payload, socket, requestId)
   })
 
   event.on(MAINTENANCE_EXIT, ({ requestId, payload, socket }) => {
+    requestId = !requestId && !socket ? LOCAL_REQUEST : requestId
     this.log.trace({ event: MAINTENANCE_EXIT, requestId  }, 'received local event')
     this.maintenance(false, payload, socket, requestId)
   })
