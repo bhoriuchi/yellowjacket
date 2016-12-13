@@ -33,8 +33,8 @@ let scheduler = function (runner, nodeList, queue, done) {
 // actions: list of actions that can be completed. returns potential status
 // in done callback or defaults to SUCCESS
 let actions = {
-  print (runner, context, done) {
-    console.log(JSON.stringify(context))
+  print (runner, task, done) {
+    console.log(JSON.stringify(task.context))
     done()
   }
 }

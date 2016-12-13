@@ -1187,8 +1187,7 @@ function runTask(task) {
   var _this4 = this;
 
   var id = task.id,
-      action = task.action,
-      context = task.context;
+      action = task.action;
 
   if (!_.has(this.actions, action)) return this.log.error({ server: this._server, action: action }, 'action is not valid');
 
@@ -1196,7 +1195,7 @@ function runTask(task) {
   this._running[id] = { action: action, started: new Date() };
 
   return this.queries.updateQueue({ id: id, state: Enum$1(RUNNING) }).then(function () {
-    var taskRun = _this4.actions[action](_this4, context, doneTask.call(_this4, id));
+    var taskRun = _this4.actions[action](_this4, task, doneTask.call(_this4, id));
     if (_this4.isPromise(taskRun)) {
       return taskRun.then(function () {
         return true;

@@ -41,7 +41,7 @@ export function doneTask (taskId) {
 
 // runs the task/action
 export function runTask (task) {
-  let { id, action, context } = task
+  let { id, action } = task
   if (!_.has(this.actions, action)) return this.log.error({ server: this._server, action }, 'action is not valid')
 
   // add the task to the running object to prevent duplicate runs and potentially use for load balancing
@@ -49,7 +49,7 @@ export function runTask (task) {
 
   return this.queries.updateQueue({ id, state: Enum(RUNNING) })
     .then(() => {
-      let taskRun = this.actions[action](this, context, doneTask.call(this, id))
+      let taskRun = this.actions[action](this, task, doneTask.call(this, id))
       if (this.isPromise(taskRun)) {
         return taskRun.then(() => true).catch((error) => {
           throw (error instanceof Error) ? error : new Error(error)
