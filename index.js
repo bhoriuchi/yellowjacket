@@ -1152,9 +1152,9 @@ function setTaskFailed(id, error) {
   var _this = this;
 
   return this.queries.updateQueue({ id: id, state: Enum$1(FAILED) }).then(function () {
-    throw error instanceof Error ? error : new Error(error);
-  }).catch(function (error) {
     _this.log.error({ server: _this._server, error: error, task: id }, 'task failed');
+  }).catch(function (error) {
+    _this.log.error({ server: _this._server, error: error, task: id }, 'fail status update failed');
   });
 }
 
@@ -1201,12 +1201,11 @@ function runTask(task) {
         return taskRun.then(function () {
           return true;
         }).catch(function (error) {
-          throw error instanceof Error ? error : new Error(error);
+          return setTaskFailed.call(_this4, id, error instanceof Error ? error : new Error(error));
         });
       }
       return taskRun;
     } catch (err) {
-      _this4.log.error({ server: _this4._server, action: action, err: err }, 'task run failed');
       return setTaskFailed.call(_this4, id, err);
     }
   }).catch(function (error) {

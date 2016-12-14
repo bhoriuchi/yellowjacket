@@ -10,10 +10,10 @@ let { utils: { Enum } } = factory
 export function setTaskFailed (id, error) {
   return this.queries.updateQueue({ id, state: Enum(FAILED) })
     .then(() => {
-      throw error instanceof Error ? error : new Error(error)
+      this.log.error({ server: this._server, error, task: id }, 'task failed')
     })
     .catch((error) => {
-      this.log.error({ server: this._server, error, task: id }, 'task failed')
+      this.log.error({ server: this._server, error, task: id }, 'fail status update failed')
     })
 }
 
@@ -53,12 +53,11 @@ export function runTask (task) {
         let taskRun = this.actions[action](this, task, doneTask.call(this, id))
         if (this.isPromise(taskRun)) {
           return taskRun.then(() => true).catch((error) => {
-            throw (error instanceof Error) ? error : new Error(error)
+            return setTaskFailed.call(this, id, (error instanceof Error) ? error : new Error(error))
           })
         }
         return taskRun
       } catch (err) {
-        this.log.error({ server: this._server, action, err }, 'task run failed')
         return setTaskFailed.call(this, id, err)
       }
     })
