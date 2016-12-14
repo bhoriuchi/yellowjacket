@@ -1195,17 +1195,23 @@ function runTask(task) {
   this._running[id] = { action: action, started: new Date() };
 
   return this.queries.updateQueue({ id: id, state: Enum$1(RUNNING) }).then(function () {
-    var taskRun = _this4.actions[action](_this4, task, doneTask.call(_this4, id));
-    if (_this4.isPromise(taskRun)) {
-      return taskRun.then(function () {
-        return true;
-      }).catch(function (error) {
-        throw error instanceof Error ? error : new Error(error);
-      });
+    try {
+      var taskRun = _this4.actions[action](_this4, task, doneTask.call(_this4, id));
+      if (_this4.isPromise(taskRun)) {
+        return taskRun.then(function () {
+          return true;
+        }).catch(function (error) {
+          throw error instanceof Error ? error : new Error(error);
+        });
+      }
+      return taskRun;
+    } catch (err) {
+      _this4.log.error({ server: _this4._server, action: action, err: err }, 'task run failed');
+      return setTaskFailed.call(_this4, id, err);
     }
-    return taskRun;
   }).catch(function (error) {
     _this4.log.error({ server: _this4._server, action: action, error: error }, 'failed to update the queue');
+    return setTaskFailed.call(_this4, id, error);
   });
 }
 

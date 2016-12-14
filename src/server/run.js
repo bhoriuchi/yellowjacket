@@ -49,16 +49,22 @@ export function runTask (task) {
 
   return this.queries.updateQueue({ id, state: Enum(RUNNING) })
     .then(() => {
-      let taskRun = this.actions[action](this, task, doneTask.call(this, id))
-      if (this.isPromise(taskRun)) {
-        return taskRun.then(() => true).catch((error) => {
-          throw (error instanceof Error) ? error : new Error(error)
-        })
+      try {
+        let taskRun = this.actions[action](this, task, doneTask.call(this, id))
+        if (this.isPromise(taskRun)) {
+          return taskRun.then(() => true).catch((error) => {
+            throw (error instanceof Error) ? error : new Error(error)
+          })
+        }
+        return taskRun
+      } catch (err) {
+        this.log.error({ server: this._server, action, err }, 'task run failed')
+        return setTaskFailed.call(this, id, err)
       }
-      return taskRun
     })
     .catch((error) => {
       this.log.error({ server: this._server, action, error }, 'failed to update the queue')
+      return setTaskFailed.call(this, id, error)
     })
 }
 
