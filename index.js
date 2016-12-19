@@ -34,7 +34,9 @@ var RunnerNodeStateEnum = {
 var _StateEnum$values = RunnerNodeStateEnum.values;
 var OFFLINE = _StateEnum$values.OFFLINE;
 var MAINTENANCE = _StateEnum$values.MAINTENANCE;
-function checkinRunnerNode (backend) {
+
+
+var checkinRunnerNode = function (backend) {
   return function (source, args, context, info) {
     var q = backend.q;
 
@@ -51,18 +53,18 @@ function checkinRunnerNode (backend) {
       return true;
     }).run();
   };
-}
+};
 
-function createRunnerSettings (backend) {
+var createRunnerSettings = function (backend) {
   return function (source, args, context, info) {
     var q = backend.q;
 
 
     return q.type('RunnerSettings').count().gt(0).branch(q.error('a settings document has already been created'), q.type('RunnerSettings').insert(args).value()).run();
   };
-}
+};
 
-function deleteRunnerSettings (backend) {
+var deleteRunnerSettings = function (backend) {
   return function (source, args, context, info) {
     var q = backend.q;
 
@@ -71,18 +73,18 @@ function deleteRunnerSettings (backend) {
       return true;
     }).run();
   };
-}
+};
 
-function readRunnerSettings (backend) {
+var readRunnerSettings = function (backend) {
   return function (source, args, context, info) {
     var q = backend.q;
 
 
     return q.type('RunnerSettings').count().eq(0).branch(q.error('a settings document has not been created yet'), q.type('RunnerSettings').nth(0).value()).run();
   };
-}
+};
 
-function updateRunnerSettings (backend) {
+var updateRunnerSettings = function (backend) {
   return function (source, args, context, info) {
     var q = backend.q;
 
@@ -91,7 +93,7 @@ function updateRunnerSettings (backend) {
       return q.type('RunnerSettings').nth(0).value();
     }).value()).run();
   };
-}
+};
 
 var functions = {
   checkinRunnerNode: checkinRunnerNode,
@@ -293,7 +295,7 @@ function updateRunner(args) {
   });
 }
 
-function queries (backend) {
+var queries = function (backend) {
   return {
     checkIn: checkIn.bind(backend),
     createQueue: createQueue.bind(backend),
@@ -307,11 +309,12 @@ function queries (backend) {
     updateQueue: updateQueue.bind(backend),
     updateRunner: updateRunner.bind(backend)
   };
-}
+};
 
 var _StateEnum$values$1 = RunnerNodeStateEnum.values;
 var OFFLINE$1 = _StateEnum$values$1.OFFLINE;
-var MAINTENANCE$1 = _StateEnum$values$1.MAINTENANCE;
+
+
 var RunnerNode = {
   fields: {
     id: {
@@ -533,7 +536,7 @@ function logify(level, args) {
 }
 
 // basic logging to the console
-function basicLogger () {
+var basicLogger = function () {
   var self = this;
   return {
     fatal: function fatal() {
@@ -567,120 +570,7 @@ function basicLogger () {
       }
     }
   };
-}
-
-var asyncGenerator = function () {
-  function AwaitValue(value) {
-    this.value = value;
-  }
-
-  function AsyncGenerator(gen) {
-    var front, back;
-
-    function send(key, arg) {
-      return new Promise(function (resolve, reject) {
-        var request = {
-          key: key,
-          arg: arg,
-          resolve: resolve,
-          reject: reject,
-          next: null
-        };
-
-        if (back) {
-          back = back.next = request;
-        } else {
-          front = back = request;
-          resume(key, arg);
-        }
-      });
-    }
-
-    function resume(key, arg) {
-      try {
-        var result = gen[key](arg);
-        var value = result.value;
-
-        if (value instanceof AwaitValue) {
-          Promise.resolve(value.value).then(function (arg) {
-            resume("next", arg);
-          }, function (arg) {
-            resume("throw", arg);
-          });
-        } else {
-          settle(result.done ? "return" : "normal", result.value);
-        }
-      } catch (err) {
-        settle("throw", err);
-      }
-    }
-
-    function settle(type, value) {
-      switch (type) {
-        case "return":
-          front.resolve({
-            value: value,
-            done: true
-          });
-          break;
-
-        case "throw":
-          front.reject(value);
-          break;
-
-        default:
-          front.resolve({
-            value: value,
-            done: false
-          });
-          break;
-      }
-
-      front = front.next;
-
-      if (front) {
-        resume(front.key, front.arg);
-      } else {
-        back = null;
-      }
-    }
-
-    this._invoke = send;
-
-    if (typeof gen.return !== "function") {
-      this.return = undefined;
-    }
-  }
-
-  if (typeof Symbol === "function" && Symbol.asyncIterator) {
-    AsyncGenerator.prototype[Symbol.asyncIterator] = function () {
-      return this;
-    };
-  }
-
-  AsyncGenerator.prototype.next = function (arg) {
-    return this._invoke("next", arg);
-  };
-
-  AsyncGenerator.prototype.throw = function (arg) {
-    return this._invoke("throw", arg);
-  };
-
-  AsyncGenerator.prototype.return = function (arg) {
-    return this._invoke("return", arg);
-  };
-
-  return {
-    wrap: function (fn) {
-      return function () {
-        return new AsyncGenerator(fn.apply(this, arguments));
-      };
-    },
-    await: function (value) {
-      return new AwaitValue(value);
-    }
-  };
-}();
+};
 
 var classCallCheck = function (instance, Constructor) {
   if (!(instance instanceof Constructor)) {
@@ -706,6 +596,10 @@ var createClass = function () {
   };
 }();
 
+
+
+
+
 var defineProperty = function (obj, key, value) {
   if (key in obj) {
     Object.defineProperty(obj, key, {
@@ -719,6 +613,31 @@ var defineProperty = function (obj, key, value) {
   }
 
   return obj;
+};
+
+var get$1 = function get$1(object, property, receiver) {
+  if (object === null) object = Function.prototype;
+  var desc = Object.getOwnPropertyDescriptor(object, property);
+
+  if (desc === undefined) {
+    var parent = Object.getPrototypeOf(object);
+
+    if (parent === null) {
+      return undefined;
+    } else {
+      return get$1(parent, property, receiver);
+    }
+  } else if ("value" in desc) {
+    return desc.value;
+  } else {
+    var getter = desc.get;
+
+    if (getter === undefined) {
+      return undefined;
+    }
+
+    return getter.call(receiver);
+  }
 };
 
 var inherits = function (subClass, superClass) {
@@ -737,12 +656,46 @@ var inherits = function (subClass, superClass) {
   if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
 };
 
+
+
+
+
+
+
+
+
+
+
 var possibleConstructorReturn = function (self, call) {
   if (!self) {
     throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
   }
 
   return call && (typeof call === "object" || typeof call === "function") ? call : self;
+};
+
+
+
+var set = function set(object, property, value, receiver) {
+  var desc = Object.getOwnPropertyDescriptor(object, property);
+
+  if (desc === undefined) {
+    var parent = Object.getPrototypeOf(object);
+
+    if (parent !== null) {
+      set(parent, property, value, receiver);
+    }
+  } else if ("value" in desc && desc.writable) {
+    desc.value = value;
+  } else {
+    var setter = desc.set;
+
+    if (setter !== undefined) {
+      setter.call(receiver, value);
+    }
+  }
+
+  return value;
 };
 
 var YellowjacketTokenStore = function () {
@@ -794,23 +747,23 @@ var YellowjacketTokenStore = function () {
   return YellowjacketTokenStore;
 }();
 
-function tokenStore (config) {
+var tokenStore = function (config) {
   return new YellowjacketTokenStore(config);
-}
+};
 
 var CONNECTION = EVENTS.CONNECTION;
-var AUTHENTICATE = EVENTS.AUTHENTICATE;
-var AUTHENTICATION_ERROR = EVENTS.AUTHENTICATION_ERROR;
 var AUTHENTICATED = EVENTS.AUTHENTICATED;
-var TOKEN = EVENTS.TOKEN;
 var STATUS = EVENTS.STATUS;
 var SCHEDULE$1 = EVENTS.SCHEDULE;
 var RUN$1 = EVENTS.RUN;
 var STOP$1 = EVENTS.STOP;
 var MAINTENANCE_ENTER$1 = EVENTS.MAINTENANCE_ENTER;
 var MAINTENANCE_EXIT$1 = EVENTS.MAINTENANCE_EXIT;
-var TOKEN_EXPIRED_ERROR = EVENTS.TOKEN_EXPIRED_ERROR;
+
+
 var LOCAL_REQUEST = 'LOCAL_REQUEST';
+
+
 
 function addListeners(socket) {
   var _this = this;
@@ -880,7 +833,7 @@ function addListeners(socket) {
   });
 }
 
-function startListeners() {
+function startListeners$1() {
   var _this2 = this;
 
   var useConnection = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
@@ -972,6 +925,7 @@ var SCHEDULE_ERROR$2 = EVENTS.SCHEDULE_ERROR;
 var SCHEDULE_ACCEPT$1 = EVENTS.SCHEDULE_ACCEPT;
 var RUN$2 = EVENTS.RUN;
 var OK$2 = EVENTS.OK;
+
 var source = 'server/schedule';
 
 // gets the next runner in the list and verifies that it is online
@@ -1089,7 +1043,7 @@ function createQueue$1(action, context, socket, requestId) {
 }
 
 // entry point for schedule request
-function schedule(payload, socket, requestId) {
+function schedule$1(payload, socket, requestId) {
   if (this.state !== ONLINE$1) {
     this.log.debug({ server: this._server, state: this.state }, 'denied schedule request');
     if (socket) socket.emit(SCHEDULE_ERROR$2 + '.' + requestId, 'runner in state ' + this.state + ' and cannot schedule tasks');
@@ -1114,7 +1068,9 @@ var ONLINE$2 = _RunnerNodeStateEnum$$1.ONLINE;
 var MAINTENANCE$3 = _RunnerNodeStateEnum$$1.MAINTENANCE;
 var MAINTENANCE_OK$1 = EVENTS.MAINTENANCE_OK;
 var MAINTENANCE_ERROR$1 = EVENTS.MAINTENANCE_ERROR;
-function maintenance(enter, reason, socket, requestId) {
+
+
+function maintenance$1(enter, reason, socket, requestId) {
   if (enter && this.state === ONLINE$2) {
     this.log.info({ server: this._server, reason: reason }, 'entering maintenance');
     this.state = MAINTENANCE$3;
@@ -1152,9 +1108,9 @@ function setTaskFailed(id, error) {
   var _this = this;
 
   return this.queries.updateQueue({ id: id, state: Enum$1(FAILED) }).then(function () {
-    throw error instanceof Error ? error : new Error(error);
-  }).catch(function (error) {
     _this.log.error({ server: _this._server, error: error, task: id }, 'task failed');
+  }).catch(function (error) {
+    _this.log.error({ server: _this._server, error: error, task: id }, 'fail status update failed');
   });
 }
 
@@ -1187,8 +1143,7 @@ function runTask(task) {
   var _this4 = this;
 
   var id = task.id,
-      action = task.action,
-      context = task.context;
+      action = task.action;
 
   if (!_.has(this.actions, action)) return this.log.error({ server: this._server, action: action }, 'action is not valid');
 
@@ -1196,37 +1151,53 @@ function runTask(task) {
   this._running[id] = { action: action, started: new Date() };
 
   return this.queries.updateQueue({ id: id, state: Enum$1(RUNNING) }).then(function () {
-    var taskRun = _this4.actions[action](_this4, context, doneTask.call(_this4, id));
-    if (_this4.isPromise(taskRun)) {
-      return taskRun.then(function () {
-        return true;
-      }).catch(function (error) {
-        throw error instanceof Error ? error : new Error(error);
-      });
+    try {
+      var taskRun = _this4.actions[action](_this4, task, doneTask.call(_this4, id));
+      if (_this4.isPromise(taskRun)) {
+        return taskRun.then(function () {
+          return true;
+        }).catch(function (error) {
+          return setTaskFailed.call(_this4, id, error instanceof Error ? error : new Error(error));
+        });
+      }
+      return taskRun;
+    } catch (err) {
+      return setTaskFailed.call(_this4, id, err);
     }
-    return taskRun;
   }).catch(function (error) {
     _this4.log.error({ server: _this4._server, action: action, error: error }, 'failed to update the queue');
+    return setTaskFailed.call(_this4, id, error);
+  });
+}
+
+// resumes a task
+function resumeTask(taskId, data) {
+  var _this5 = this;
+
+  return this.queries.readQueue({ id: taskId }).then(function (tasks) {
+    var task = _.get(tasks, '[0]');
+    if (!task) throw new Error('task ' + taskId + ' not found');
+    return runTask.call(_this5, _.merge({}, task, { resume: true, data: data }));
   });
 }
 
 // gets the tasks assigned to this runner
 function getAssigned() {
-  var _this5 = this;
+  var _this6 = this;
 
   return this.queries.readQueue({ runner: this.id, state: Enum$1(SCHEDULED$1) }).then(function (tasks) {
-    _this5.log.trace({ server: _this5._server }, 'acquired tasks');
+    _this6.log.trace({ server: _this6._server }, 'acquired tasks');
     _.forEach(tasks, function (task) {
       // do not run the task if its already running
-      if (!_.has(_this5._running, task.id)) runTask.call(_this5, task);
+      if (!_.has(_this6._running, task.id)) runTask.call(_this6, task);
     });
   }).catch(function (error) {
-    _this5.log.debug({ server: _this5._server, error: error }, 'failed to get assigned tasks');
+    _this6.log.debug({ server: _this6._server, error: error }, 'failed to get assigned tasks');
   });
 }
 
 // checks for assigned tasks and attempts to run them
-function run(socket, requestId) {
+function run$1(socket, requestId) {
   if (this.state !== ONLINE$3) {
     this.log.debug({ server: this._server, state: this.state }, 'denied run request');
     if (socket) socket.emit(SCHEDULE_ERROR + '.' + requestId, 'runner in state ' + this.state + ' and cannot run tasks');
@@ -1278,7 +1249,7 @@ function processStop(socket, requestId, options) {
   return forceStop.call(this, socket, requestId);
 }
 
-function stop(options, socket, requestId) {
+function stop$1(options, socket, requestId) {
   var _this3 = this;
 
   this.log.info({ server: this._server }, 'server stop requested');
@@ -1301,11 +1272,10 @@ var CONNECT = EVENTS.CONNECT;
 var UNAUTHORIZED = EVENTS.UNAUTHORIZED;
 var AUTHENTICATE$1 = EVENTS.AUTHENTICATE;
 var AUTHENTICATED$1 = EVENTS.AUTHENTICATED;
-var AUTHENTICATION_ERROR$1 = EVENTS.AUTHENTICATION_ERROR;
-var TOKEN$1 = EVENTS.TOKEN;
 var CONNECT_ERROR = EVENTS.CONNECT_ERROR;
 var CONNECT_TIMEOUT = EVENTS.CONNECT_TIMEOUT;
-var TOKEN_EXPIRED_ERROR$1 = EVENTS.TOKEN_EXPIRED_ERROR;
+
+
 function addListeners$1(socket, listeners, requestId) {
   var _this = this;
 
@@ -1318,7 +1288,7 @@ function addListeners$1(socket, listeners, requestId) {
   });
 }
 
-function emit(host, port, event, payload) {
+function emit$1(host, port, event, payload) {
   var listeners = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : {};
 
   var _this2 = this;
@@ -1386,6 +1356,8 @@ var ONLINE = _RunnerNodeStateEnum$.ONLINE;
 var MAINTENANCE$2 = _RunnerNodeStateEnum$.MAINTENANCE;
 var DISCONNECT = EVENTS.DISCONNECT;
 var RUN = EVENTS.RUN;
+
+
 var YellowJacketServer = function () {
   function YellowJacketServer(backend) {
     var _this = this;
@@ -1503,13 +1475,13 @@ var YellowJacketServer = function () {
     }
   }, {
     key: 'startListeners',
-    value: function startListeners$$(useConnection) {
-      startListeners.call(this, useConnection);
+    value: function startListeners(useConnection) {
+      startListeners$1.call(this, useConnection);
     }
   }, {
     key: 'emit',
-    value: function emit$$(host, port, event, payload, listener, cb, timeout) {
-      return emit.call(this, host, port, event, payload, listener, cb, timeout);
+    value: function emit(host, port, event, payload, listener, cb, timeout) {
+      return emit$1.call(this, host, port, event, payload, listener, cb, timeout);
     }
   }, {
     key: 'renewToken',
@@ -1520,13 +1492,13 @@ var YellowJacketServer = function () {
     }
   }, {
     key: 'schedule',
-    value: function schedule$$(payload, socket, requestId) {
-      return schedule.call(this, payload, socket, requestId);
+    value: function schedule(payload, socket, requestId) {
+      return schedule$1.call(this, payload, socket, requestId);
     }
   }, {
     key: 'run',
-    value: function run$$(socket, requestId) {
-      return run.call(this, socket, requestId);
+    value: function run(socket, requestId) {
+      return run$1.call(this, socket, requestId);
     }
   }, {
     key: 'done',
@@ -1534,14 +1506,19 @@ var YellowJacketServer = function () {
       return doneTask.call(this, taskId)(err, status, data);
     }
   }, {
+    key: 'resume',
+    value: function resume(taskId, data) {
+      return resumeTask.call(this, taskId, data);
+    }
+  }, {
     key: 'stop',
-    value: function stop$$(options, socket, requestId) {
-      return stop.call(this, options, socket, requestId);
+    value: function stop(options, socket, requestId) {
+      return stop$1.call(this, options, socket, requestId);
     }
   }, {
     key: 'maintenance',
-    value: function maintenance$$(enter, reason, socket, requestId) {
-      return maintenance.call(this, enter, reason, socket, requestId);
+    value: function maintenance(enter, reason, socket, requestId) {
+      return maintenance$1.call(this, enter, reason, socket, requestId);
     }
   }, {
     key: 'info',
@@ -1612,12 +1589,14 @@ var YellowJacketServer = function () {
   return YellowJacketServer;
 }();
 
-function YellowJacketServer$1 (backend, options) {
+var YellowJacketServer$1 = function (backend, options) {
   return new YellowJacketServer(backend, options);
-}
+};
 
 var DISCONNECT$1 = EVENTS.DISCONNECT;
 var OK$3 = EVENTS.OK;
+
+
 var YellowjacketClient = function () {
   function YellowjacketClient(backend) {
     var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
@@ -1647,8 +1626,8 @@ var YellowjacketClient = function () {
 
   createClass(YellowjacketClient, [{
     key: 'emit',
-    value: function emit$$(host, port, event, payload, listener, cb, timeout) {
-      return emit.call(this, host, port, event, payload, listener, cb, timeout);
+    value: function emit(host, port, event, payload, listener, cb, timeout) {
+      return emit$1.call(this, host, port, event, payload, listener, cb, timeout);
     }
   }, {
     key: 'renewToken',
@@ -1674,13 +1653,12 @@ var YellowjacketClient = function () {
   return YellowjacketClient;
 }();
 
-function YellowjacketClient$1 (backend) {
+var YellowjacketClient$1 = function (backend) {
   var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
   return new YellowjacketClient(backend, options);
-}
+};
 
-var OK$1 = EVENTS.OK;
 var STOP = EVENTS.STOP;
 var SCHEDULE = EVENTS.SCHEDULE;
 var SCHEDULE_ACCEPT = EVENTS.SCHEDULE_ACCEPT;
@@ -1691,6 +1669,8 @@ var MAINTENANCE_ERROR = EVENTS.MAINTENANCE_ERROR;
 var MAINTENANCE_OK = EVENTS.MAINTENANCE_OK;
 var STOPPING = EVENTS.STOPPING;
 var STOPPING_ACK = EVENTS.STOPPING_ACK;
+
+
 function listRunner(args) {
   return this.queries.readRunner(args);
 }
@@ -1971,7 +1951,7 @@ var config = {
   }
 };
 
-function getOptions () {
+var getOptions = function () {
   var customConfig = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
   var parser = arguments[1];
 
@@ -1994,7 +1974,7 @@ function getOptions () {
   }
 
   return options;
-}
+};
 
 function cli(config, parser) {
   var options = getOptions(config, parser);
@@ -2095,9 +2075,9 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 }(graphqlFactoryBackend.GraphQLFactoryRethinkDBBackend);
 
 // helper function to instantiate a new backend
-function rethinkdb (namespace, graphql, r, config, connection) {
+var rethinkdb = function (namespace, graphql, r, config, connection) {
   return new YellowjacketRethinkDBBackend(namespace, graphql, r, config, connection);
-}
+};
 
 var index = {
   rethinkdb: rethinkdb,

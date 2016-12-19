@@ -10,10 +10,10 @@ let { utils: { Enum } } = factory
 export function setTaskFailed (id, error) {
   return this.queries.updateQueue({ id, state: Enum(FAILED) })
     .then(() => {
-      throw error instanceof Error ? error : new Error(error)
+      this.log.error({ server: this._server, error, task: id }, 'task failed')
     })
     .catch((error) => {
-      this.log.error({ server: this._server, error, task: id }, 'task failed')
+      this.log.error({ server: this._server, error, task: id }, 'fail status update failed')
     })
 }
 
@@ -41,7 +41,7 @@ export function doneTask (taskId) {
 
 // runs the task/action
 export function runTask (task) {
-  let { id, action, context } = task
+  let { id, action } = task
   if (!_.has(this.actions, action)) return this.log.error({ server: this._server, action }, 'action is not valid')
 
   // add the task to the running object to prevent duplicate runs and potentially use for load balancing
@@ -49,16 +49,31 @@ export function runTask (task) {
 
   return this.queries.updateQueue({ id, state: Enum(RUNNING) })
     .then(() => {
-      let taskRun = this.actions[action](this, context, doneTask.call(this, id))
-      if (this.isPromise(taskRun)) {
-        return taskRun.then(() => true).catch((error) => {
-          throw (error instanceof Error) ? error : new Error(error)
-        })
+      try {
+        let taskRun = this.actions[action](this, task, doneTask.call(this, id))
+        if (this.isPromise(taskRun)) {
+          return taskRun.then(() => true).catch((error) => {
+            return setTaskFailed.call(this, id, (error instanceof Error) ? error : new Error(error))
+          })
+        }
+        return taskRun
+      } catch (err) {
+        return setTaskFailed.call(this, id, err)
       }
-      return taskRun
     })
     .catch((error) => {
       this.log.error({ server: this._server, action, error }, 'failed to update the queue')
+      return setTaskFailed.call(this, id, error)
+    })
+}
+
+// resumes a task
+export function resumeTask (taskId, data) {
+  return this.queries.readQueue({ id: taskId })
+    .then((tasks) => {
+      let task = _.get(tasks, '[0]')
+      if (!task) throw new Error(`task ${taskId} not found`)
+      return runTask.call(this, _.merge({}, task, { resume: true, data }))
     })
 }
 
