@@ -1,10 +1,10 @@
 import _ from 'lodash'
-import factory from 'graphql-factory'
+import obj2arg from 'graphql-obj2arg'
 
 export default function createRunner (args) {
-  return this.lib.YJRunner(`mutation Mutation
+  return this.lib.Yellowjacket(`mutation Mutation
   {
-    createRunnerNode (${factory.utils.toObjectString(args, { noOuterBraces: true })})
+    createRunnerNode (${obj2arg(args, { noOuterBraces: true })})
     {
       id,
       host,

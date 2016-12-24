@@ -19,7 +19,7 @@ export default {
     }
   },
   _backend: {
-    schema: 'YJRunner',
+    schema: 'Yellowjacket',
     collection: 'runner_zone'
   }
 }

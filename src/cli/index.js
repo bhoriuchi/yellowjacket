@@ -1,11 +1,11 @@
 import getOptions from './options'
-import { YellowJacketServer } from '../server/index'
+import YellowjacketServer from '../server/index'
 
 export default function cli (config, parser) {
   let options = getOptions(config, parser)
   this.cmd(options)
     .then((result) => {
-      if (!(result instanceof YellowJacketServer)) {
+      if (!(result instanceof YellowjacketServer)) {
         try {
           console.log(JSON.stringify(result, null, '  '))
         } catch (err) {
@@ -15,7 +15,7 @@ export default function cli (config, parser) {
       }
     })
     .catch((error) => {
-      if (!(error instanceof YellowJacketServer)) {
+      if (!(error instanceof YellowjacketServer)) {
         console.error(error.message)
         process.exit()
       }

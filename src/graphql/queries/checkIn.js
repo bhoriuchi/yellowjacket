@@ -8,7 +8,7 @@ export default function checkIn (first) {
   // run the checkIn on an interval
   setTimeout(() => checkIn.call(this), this._checkinFrequency * ONE_SECOND_IN_MS)
 
-  return this.lib.YJRunner(`
+  return this.lib.Yellowjacket(`
   mutation Mutation {
     checkinRunnerNode (
       id: "${this.id}",

@@ -1,5 +1,5 @@
 import StateEnum from './RunnerNodeStateEnum'
-let { OFFLINE, MAINTENANCE } = StateEnum.values
+let { OFFLINE } = StateEnum.values
 
 export default {
   fields: {
@@ -36,18 +36,20 @@ export default {
     }
   },
   _backend: {
-    schema: 'YJRunner',
+    schema: 'Yellowjacket',
     collection: 'runner_node',
     mutation: {
       create: {
-        before (source, args, context, info) {
-          if (!args.host) throw new Error('Missing required field host')
-          if (!args.port) throw new Error('Missing required field port')
+        before (fnArgs, backend, done) {
+          let { args } = fnArgs
+          if (!args.host) return done(new Error('Missing required field host'))
+          if (!args.port) return done(new Error('Missing required field port'))
 
           delete args.id
           delete args.checkin
 
           args.state = OFFLINE
+          return done()
         }
       },
       checkinRunnerNode: {

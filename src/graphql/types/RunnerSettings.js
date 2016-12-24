@@ -22,7 +22,7 @@ export default {
     }
   },
   _backend: {
-    schema: 'YJRunner',
+    schema: 'Yellowjacket',
     collection: 'runner_settings',
     query: {
       read: { type: 'RunnerSettings', resolve: 'readRunnerSettings' }

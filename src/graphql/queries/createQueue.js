@@ -1,14 +1,14 @@
 import _ from 'lodash'
-import factory from 'graphql-factory'
+import obj2arg from 'graphql-obj2arg'
 import RunnerQueueStateEnum from '../types/RunnerQueueStateEnum'
 let { values: { UNSCHEDULED } } = RunnerQueueStateEnum
 
 export default function createQueue (action, context) {
-  return this.lib.YJRunner(`mutation Mutation 
+  return this.lib.Yellowjacket(`mutation Mutation 
     {
       createRunnerQueue (
         action: "${action}",
-        context: ${factory.utils.toObjectString(context)},
+        context: ${obj2arg(context)},
         state: ${UNSCHEDULED}
       ) {
         id,

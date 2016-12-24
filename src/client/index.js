@@ -7,7 +7,7 @@ import CONST from '../common/const'
 import { LOG_LEVELS, EVENTS } from '../common/const'
 let { DISCONNECT, OK } = EVENTS
 
-export class YellowjacketClient {
+export default class YellowjacketClient {
   constructor (backend, options = {}) {
     let { socket, token, host, port } = options
 
@@ -47,8 +47,4 @@ export class YellowjacketClient {
       delete this._sockets[`${host}:${port}`]
     }
   }
-}
-
-export default function (backend, options = {}) {
-  return new YellowjacketClient(backend, options)
 }

@@ -34,20 +34,26 @@ export default {
     }
   },
   _backend: {
-    schema: 'YJRunner',
+    schema: 'Yellowjacket',
     collection: 'runner_queue',
     mutation: {
       create: {
-        before (source, args, context, info) {
-          let { q } = this
-          args.created = q.now().value()
-          args.updated = q.now().value()
+        before (fnArgs, backend, done) {
+          let { args } = fnArgs
+          return backend.now((err, now) => {
+            if (err) return done(err)
+            args.create = now
+            args.updated = now
+          })
         }
       },
       update: {
-        before (source, args, context, info) {
-          let { q } = this
-          args.updated = q.now().value()
+        before (fnArgs, backend, done) {
+          let { args } = fnArgs
+          return backend.now((err, now) => {
+            if (err) return done(err)
+            args.updated = now
+          })
         }
       }
     }

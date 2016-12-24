@@ -1,10 +1,10 @@
 import _ from 'lodash'
-import factory from 'graphql-factory'
+import obj2arg from 'graphql-obj2arg'
 
 export default function readQueue (args) {
-  return this.lib.YJRunner(`
+  return this.lib.Yellowjacket(`
   {
-    readRunnerQueue (${factory.utils.toObjectString(args, { noOuterBraces: true })})
+    readRunnerQueue (${obj2arg(args, { noOuterBraces: true })})
     {
       id,
       created,

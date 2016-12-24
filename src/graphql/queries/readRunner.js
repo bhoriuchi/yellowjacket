@@ -1,11 +1,11 @@
 import _ from 'lodash'
-import factory from 'graphql-factory'
+import obj2arg from 'graphql-obj2arg'
 
 export default function readRunner (args) {
 
-  let filter = _.isObject(args) ? `(${factory.utils.toObjectString(args, { noOuterBraces: true })})` : ''
+  let filter = _.isObject(args) ? `(${obj2arg(args, { noOuterBraces: true })})` : ''
 
-  return this.lib.YJRunner(`
+  return this.lib.Yellowjacket(`
   {
     readRunnerNode ${filter}
     {

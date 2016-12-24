@@ -7,7 +7,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var _ = _interopDefault(require('lodash'));
 var factory = _interopDefault(require('graphql-factory'));
 var graphqlFactoryBackend = require('graphql-factory-backend');
-var FactoryTypePlugin = _interopDefault(require('graphql-factory-types'));
+var obj2arg = _interopDefault(require('graphql-obj2arg'));
 var os = _interopDefault(require('os'));
 var Events = _interopDefault(require('events'));
 var http = _interopDefault(require('http'));
@@ -20,6 +20,7 @@ var socketioJwt = _interopDefault(require('socketio-jwt'));
 var hat = _interopDefault(require('hat'));
 var SocketClient = _interopDefault(require('socket.io-client'));
 var NestedOpts = _interopDefault(require('nested-opts'));
+var FactoryTypePlugin = _interopDefault(require('graphql-factory-types'));
 
 var RunnerNodeStateEnum = {
   type: 'Enum',
@@ -172,7 +173,7 @@ function checkIn(first) {
     return checkIn.call(_this);
   }, this._checkinFrequency * ONE_SECOND_IN_MS);
 
-  return this.lib.YJRunner('\n  mutation Mutation {\n    checkinRunnerNode (\n      id: "' + this.id + '",\n      state: ' + this.state + ',\n      offlineAfter: ' + this._offlineAfter + '\n    )\n  }').then(function (result) {
+  return this.lib.Yellowjacket('\n  mutation Mutation {\n    checkinRunnerNode (\n      id: "' + this.id + '",\n      state: ' + this.state + ',\n      offlineAfter: ' + this._offlineAfter + '\n    )\n  }').then(function (result) {
     var runner = _.get(result, 'data.checkinRunnerNode');
     if (result.errors) throw new Error(result.errors);
     if (!runner) throw new Error('Runner with host:port ' + _this._server + ' was unable to check in');
@@ -196,7 +197,7 @@ var UNSCHEDULED = RunnerQueueStateEnum.values.UNSCHEDULED;
 
 
 function createQueue(action, context) {
-  return this.lib.YJRunner('mutation Mutation \n    {\n      createRunnerQueue (\n        action: "' + action + '",\n        context: ' + factory.utils.toObjectString(context) + ',\n        state: ' + UNSCHEDULED + '\n      ) {\n        id,\n        action,\n        context\n      }  \n    }').then(function (result) {
+  return this.lib.Yellowjacket('mutation Mutation \n    {\n      createRunnerQueue (\n        action: "' + action + '",\n        context: ' + obj2arg(context) + ',\n        state: ' + UNSCHEDULED + '\n      ) {\n        id,\n        action,\n        context\n      }  \n    }').then(function (result) {
     var queue = _.get(result, 'data.createRunnerQueue');
     if (result.errors) throw new Error(result.errors);
     if (!queue) throw new Error('Could not create queue');
@@ -205,7 +206,7 @@ function createQueue(action, context) {
 }
 
 function createRunner(args) {
-  return this.lib.YJRunner('mutation Mutation\n  {\n    createRunnerNode (' + factory.utils.toObjectString(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      host,\n      port,\n      state,\n      zone { id, name },\n      metadata\n    }\n  }').then(function (result) {
+  return this.lib.Yellowjacket('mutation Mutation\n  {\n    createRunnerNode (' + obj2arg(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      host,\n      port,\n      state,\n      zone { id, name },\n      metadata\n    }\n  }').then(function (result) {
     var runner = _.get(result, 'data.createRunnerNode');
     if (result.errors) throw result.errors;
     if (!runner) throw new Error('runner not created');
@@ -214,7 +215,7 @@ function createRunner(args) {
 }
 
 function deleteQueue(id) {
-  return this.lib.YJRunner('mutation Mutation\n  {\n    deleteRunnerQueue (id: "' + id + '")\n  }').then(function (result) {
+  return this.lib.Yellowjacket('mutation Mutation\n  {\n    deleteRunnerQueue (id: "' + id + '")\n  }').then(function (result) {
     var queue = _.get(result, 'data.deleteRunnerQueue');
     if (result.errors) throw new Error(result.errors);
     if (!queue) throw new Error('queue not deleted');
@@ -223,7 +224,7 @@ function deleteQueue(id) {
 }
 
 function deleteRunner(id) {
-  return this.lib.YJRunner('mutation Mutation\n  {\n    deleteRunnerNode (id: "' + id + '")\n  }').then(function (result) {
+  return this.lib.Yellowjacket('mutation Mutation\n  {\n    deleteRunnerNode (id: "' + id + '")\n  }').then(function (result) {
     var runner = _.get(result, 'data.deleteRunnerNode');
     if (result.errors) throw new Error(result.errors);
     if (!runner) throw new Error('runner not deleted');
@@ -236,7 +237,7 @@ function getSelf() {
 
   this.log.trace({ server: this._server }, 'getting self');
 
-  return this.lib.YJRunner('\n    {\n      readRunnerNode (\n        host: "' + this._host + '",\n        port: ' + this._port + '\n      )\n      {\n        id,\n        state\n      }\n    }').then(function (result) {
+  return this.lib.Yellowjacket('\n    {\n      readRunnerNode (\n        host: "' + this._host + '",\n        port: ' + this._port + '\n      )\n      {\n        id,\n        state\n      }\n    }').then(function (result) {
     var runner = _.get(result, 'data.readRunnerNode[0]');
     if (result.errors) throw new Error(result.errors);
     if (!runner) throw new Error('Runner with host:port ' + _this._server + ' must be added first');
@@ -248,7 +249,7 @@ function getSettings() {
 
   this.log.trace({ server: this._server }, 'getting global settings');
 
-  return this.lib.YJRunner('\n    {\n      readRunnerSettings {\n        appName,\n        checkinFrequency,\n        offlineAfterPolls\n      }\n    }').then(function (result) {
+  return this.lib.Yellowjacket('\n    {\n      readRunnerSettings {\n        appName,\n        checkinFrequency,\n        offlineAfterPolls\n      }\n    }').then(function (result) {
     var settings = _.get(result, 'data.readRunnerSettings');
     if (result.errors) throw new Error(result.errors);
     if (!settings) throw new Error('No settings document was found');
@@ -257,7 +258,7 @@ function getSettings() {
 }
 
 function readQueue(args) {
-  return this.lib.YJRunner('\n  {\n    readRunnerQueue (' + factory.utils.toObjectString(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      created,\n      updated,\n      runner,\n      state,\n      action,\n      context\n    }\n  }').then(function (result) {
+  return this.lib.Yellowjacket('\n  {\n    readRunnerQueue (' + obj2arg(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      created,\n      updated,\n      runner,\n      state,\n      action,\n      context\n    }\n  }').then(function (result) {
     var tasks = _.get(result, 'data.readRunnerQueue');
     if (result.errors) throw new Error(result.errors);
     if (!tasks) throw new Error('No tasks');
@@ -267,9 +268,9 @@ function readQueue(args) {
 
 function readRunner(args) {
 
-  var filter = _.isObject(args) ? '(' + factory.utils.toObjectString(args, { noOuterBraces: true }) + ')' : '';
+  var filter = _.isObject(args) ? '(' + obj2arg(args, { noOuterBraces: true }) + ')' : '';
 
-  return this.lib.YJRunner('\n  {\n    readRunnerNode ' + filter + '\n    {\n      id,\n      host,\n      port,\n      zone { id, name, description, metadata },\n      state,\n      metadata\n    }\n  }').then(function (result) {
+  return this.lib.Yellowjacket('\n  {\n    readRunnerNode ' + filter + '\n    {\n      id,\n      host,\n      port,\n      zone { id, name, description, metadata },\n      state,\n      metadata\n    }\n  }').then(function (result) {
     var runners = _.get(result, 'data.readRunnerNode');
     if (result.errors) throw new Error(result.errors);
     if (!runners) throw new Error('No runners');
@@ -278,7 +279,7 @@ function readRunner(args) {
 }
 
 function updateQueue(args) {
-  return this.lib.YJRunner('mutation Mutation\n  {\n    updateRunnerQueue (' + factory.utils.toObjectString(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      runner,\n      state,\n      action,\n      context\n    }\n  }').then(function (result) {
+  return this.lib.Yellowjacket('mutation Mutation\n  {\n    updateRunnerQueue (' + obj2arg(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      runner,\n      state,\n      action,\n      context\n    }\n  }').then(function (result) {
     var queue = _.get(result, 'data.updateRunnerQueue');
     if (result.errors) throw new Error(result.errors);
     if (!queue) throw new Error('queue not updated');
@@ -287,7 +288,7 @@ function updateQueue(args) {
 }
 
 function updateRunner(args) {
-  return this.lib.YJRunner('mutation Mutation\n  {\n    updateRunnerNode (' + factory.utils.toObjectString(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      host,\n      port,\n      zone { id, name, description, metadata },\n      state,\n      metadata\n    }\n  }').then(function (result) {
+  return this.lib.Yellowjacket('mutation Mutation\n  {\n    updateRunnerNode (' + obj2arg(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      host,\n      port,\n      zone { id, name, description, metadata },\n      state,\n      metadata\n    }\n  }').then(function (result) {
     var runner = _.get(result, 'data.updateRunnerNode');
     if (result.errors) throw new Error(result.errors);
     if (!runner) throw new Error('runner not updated');
@@ -311,8 +312,7 @@ var queries = function (backend) {
   };
 };
 
-var _StateEnum$values$1 = RunnerNodeStateEnum.values;
-var OFFLINE$1 = _StateEnum$values$1.OFFLINE;
+var OFFLINE$1 = RunnerNodeStateEnum.values.OFFLINE;
 
 
 var RunnerNode = {
@@ -350,18 +350,21 @@ var RunnerNode = {
     }
   },
   _backend: {
-    schema: 'YJRunner',
+    schema: 'Yellowjacket',
     collection: 'runner_node',
     mutation: {
       create: {
-        before: function before(source, args, context, info) {
-          if (!args.host) throw new Error('Missing required field host');
-          if (!args.port) throw new Error('Missing required field port');
+        before: function before(fnArgs, backend, done) {
+          var args = fnArgs.args;
+
+          if (!args.host) return done(new Error('Missing required field host'));
+          if (!args.port) return done(new Error('Missing required field port'));
 
           delete args.id;
           delete args.checkin;
 
           args.state = OFFLINE$1;
+          return done();
         }
       },
       checkinRunnerNode: {
@@ -413,22 +416,28 @@ var RunnerQueue = {
     }
   },
   _backend: {
-    schema: 'YJRunner',
+    schema: 'Yellowjacket',
     collection: 'runner_queue',
     mutation: {
       create: {
-        before: function before(source, args, context, info) {
-          var q = this.q;
+        before: function before(fnArgs, backend, done) {
+          var args = fnArgs.args;
 
-          args.created = q.now().value();
-          args.updated = q.now().value();
+          return backend.now(function (err, now) {
+            if (err) return done(err);
+            args.create = now;
+            args.updated = now;
+          });
         }
       },
       update: {
-        before: function before(source, args, context, info) {
-          var q = this.q;
+        before: function before(fnArgs, backend, done) {
+          var args = fnArgs.args;
 
-          args.updated = q.now().value();
+          return backend.now(function (err, now) {
+            if (err) return done(err);
+            args.updated = now;
+          });
         }
       }
     }
@@ -459,7 +468,7 @@ var RunnerSettings = {
     }
   },
   _backend: {
-    schema: 'YJRunner',
+    schema: 'Yellowjacket',
     collection: 'runner_settings',
     query: {
       read: { type: 'RunnerSettings', resolve: 'readRunnerSettings' }
@@ -493,12 +502,12 @@ var RunnerZone = {
     }
   },
   _backend: {
-    schema: 'YJRunner',
+    schema: 'Yellowjacket',
     collection: 'runner_zone'
   }
 };
 
-var types = {
+var typeDefinitions = {
   RunnerNode: RunnerNode,
   RunnerNodeStateEnum: RunnerNodeStateEnum,
   RunnerQueue: RunnerQueue,
@@ -506,16 +515,6 @@ var types = {
   RunnerSettings: RunnerSettings,
   RunnerZone: RunnerZone
 };
-
-function mergeConfig() {
-  var config = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-  // merge plugins
-  var plugin = _.union([FactoryTypePlugin], _.isArray(config.plugin) ? config.plugin : []);
-
-  // merge passed config with required config
-  return _.merge({}, config, { types: types, plugin: plugin });
-}
 
 var installData = {
   RunnerSettings: [{
@@ -615,30 +614,7 @@ var defineProperty = function (obj, key, value) {
   return obj;
 };
 
-var get$1 = function get$1(object, property, receiver) {
-  if (object === null) object = Function.prototype;
-  var desc = Object.getOwnPropertyDescriptor(object, property);
 
-  if (desc === undefined) {
-    var parent = Object.getPrototypeOf(object);
-
-    if (parent === null) {
-      return undefined;
-    } else {
-      return get$1(parent, property, receiver);
-    }
-  } else if ("value" in desc) {
-    return desc.value;
-  } else {
-    var getter = desc.get;
-
-    if (getter === undefined) {
-      return undefined;
-    }
-
-    return getter.call(receiver);
-  }
-};
 
 var inherits = function (subClass, superClass) {
   if (typeof superClass !== "function" && superClass !== null) {
@@ -672,30 +648,6 @@ var possibleConstructorReturn = function (self, call) {
   }
 
   return call && (typeof call === "object" || typeof call === "function") ? call : self;
-};
-
-
-
-var set = function set(object, property, value, receiver) {
-  var desc = Object.getOwnPropertyDescriptor(object, property);
-
-  if (desc === undefined) {
-    var parent = Object.getPrototypeOf(object);
-
-    if (parent !== null) {
-      set(parent, property, value, receiver);
-    }
-  } else if ("value" in desc && desc.writable) {
-    desc.value = value;
-  } else {
-    var setter = desc.set;
-
-    if (setter !== undefined) {
-      setter.call(receiver, value);
-    }
-  }
-
-  return value;
 };
 
 var YellowjacketTokenStore = function () {
@@ -1065,7 +1017,7 @@ function schedule$1(payload, socket, requestId) {
 
 var _RunnerNodeStateEnum$$1 = RunnerNodeStateEnum.values;
 var ONLINE$2 = _RunnerNodeStateEnum$$1.ONLINE;
-var MAINTENANCE$3 = _RunnerNodeStateEnum$$1.MAINTENANCE;
+var MAINTENANCE$2 = _RunnerNodeStateEnum$$1.MAINTENANCE;
 var MAINTENANCE_OK$1 = EVENTS.MAINTENANCE_OK;
 var MAINTENANCE_ERROR$1 = EVENTS.MAINTENANCE_ERROR;
 
@@ -1073,13 +1025,13 @@ var MAINTENANCE_ERROR$1 = EVENTS.MAINTENANCE_ERROR;
 function maintenance$1(enter, reason, socket, requestId) {
   if (enter && this.state === ONLINE$2) {
     this.log.info({ server: this._server, reason: reason }, 'entering maintenance');
-    this.state = MAINTENANCE$3;
+    this.state = MAINTENANCE$2;
 
     return this.queries.checkIn().then(function () {
       if (socket) socket.emit(MAINTENANCE_OK$1 + '.' + requestId);
       return true;
     });
-  } else if (!enter && this.state === MAINTENANCE$3) {
+  } else if (!enter && this.state === MAINTENANCE$2) {
     this.log.info({ server: this._server, reason: reason }, 'exiting maintenance');
     this.state = ONLINE$2;
 
@@ -1353,17 +1305,16 @@ function emit$1(host, port, event, payload) {
 
 var _RunnerNodeStateEnum$ = RunnerNodeStateEnum.values;
 var ONLINE = _RunnerNodeStateEnum$.ONLINE;
-var MAINTENANCE$2 = _RunnerNodeStateEnum$.MAINTENANCE;
+var MAINTENANCE$1 = _RunnerNodeStateEnum$.MAINTENANCE;
 var DISCONNECT = EVENTS.DISCONNECT;
 var RUN = EVENTS.RUN;
 
-
-var YellowJacketServer = function () {
-  function YellowJacketServer(backend) {
+var YellowjacketServer = function () {
+  function YellowjacketServer(backend) {
     var _this = this;
 
     var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    classCallCheck(this, YellowJacketServer);
+    classCallCheck(this, YellowjacketServer);
     var host = options.host,
         port = options.port,
         token = options.token,
@@ -1425,7 +1376,7 @@ var YellowJacketServer = function () {
       // get self
       return _this.queries.getSelf().then(function (self) {
         _this.id = self.id;
-        _this.state = self.state === MAINTENANCE$2 ? MAINTENANCE$2 : ONLINE;
+        _this.state = self.state === MAINTENANCE$1 ? MAINTENANCE$1 : ONLINE;
 
         // check in
         return _this.queries.checkIn(true).then(function () {
@@ -1455,7 +1406,7 @@ var YellowJacketServer = function () {
     });
   }
 
-  createClass(YellowJacketServer, [{
+  createClass(YellowjacketServer, [{
     key: 'checkQueue',
     value: function checkQueue() {
       var _this2 = this;
@@ -1586,16 +1537,11 @@ var YellowJacketServer = function () {
       };
     }
   }]);
-  return YellowJacketServer;
+  return YellowjacketServer;
 }();
-
-var YellowJacketServer$1 = function (backend, options) {
-  return new YellowJacketServer(backend, options);
-};
 
 var DISCONNECT$1 = EVENTS.DISCONNECT;
 var OK$3 = EVENTS.OK;
-
 
 var YellowjacketClient = function () {
   function YellowjacketClient(backend) {
@@ -1653,12 +1599,6 @@ var YellowjacketClient = function () {
   return YellowjacketClient;
 }();
 
-var YellowjacketClient$1 = function (backend) {
-  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-
-  return new YellowjacketClient(backend, options);
-};
-
 var STOP = EVENTS.STOP;
 var SCHEDULE = EVENTS.SCHEDULE;
 var SCHEDULE_ACCEPT = EVENTS.SCHEDULE_ACCEPT;
@@ -1702,7 +1642,7 @@ function updateRunner$1(args) {
 }
 
 function startRunner(options) {
-  return YellowJacketServer$1(this, options);
+  return new YellowjacketServer(this, options);
 }
 
 function scheduleRunner(_ref) {
@@ -1713,7 +1653,7 @@ function scheduleRunner(_ref) {
       _ref$loglevel = _ref.loglevel,
       loglevel = _ref$loglevel === undefined ? LOG_LEVELS.info : _ref$loglevel;
 
-  var client = YellowjacketClient$1(this, { loglevel: loglevel });
+  var client = new YellowjacketClient(this, { loglevel: loglevel });
 
   return new Promise(function (resolve, reject) {
     var _client$emit;
@@ -1734,7 +1674,7 @@ function stopRunner(_ref2) {
       _ref2$loglevel = _ref2.loglevel,
       loglevel = _ref2$loglevel === undefined ? LOG_LEVELS.info : _ref2$loglevel;
 
-  var client = YellowjacketClient$1(this, { loglevel: loglevel });
+  var client = new YellowjacketClient(this, { loglevel: loglevel });
 
   return new Promise(function (resolve, reject) {
     client.emit(host, port, STOP, {}, defineProperty({}, STOPPING, function (socket) {
@@ -1754,7 +1694,7 @@ function maintenanceRunner(_ref3) {
       _ref3$loglevel = _ref3.loglevel,
       loglevel = _ref3$loglevel === undefined ? LOG_LEVELS.info : _ref3$loglevel;
 
-  var client = YellowjacketClient$1(this, { loglevel: loglevel });
+  var client = new YellowjacketClient(this, { loglevel: loglevel });
 
   var EVT = exit ? MAINTENANCE_EXIT : MAINTENANCE_ENTER;
 
@@ -1979,7 +1919,7 @@ var getOptions = function () {
 function cli(config, parser) {
   var options = getOptions(config, parser);
   this.cmd(options).then(function (result) {
-    if (!(result instanceof YellowJacketServer)) {
+    if (!(result instanceof YellowjacketServer)) {
       try {
         console.log(JSON.stringify(result, null, '  '));
       } catch (err) {
@@ -1988,10 +1928,55 @@ function cli(config, parser) {
       process.exit();
     }
   }).catch(function (error) {
-    if (!(error instanceof YellowJacketServer)) {
+    if (!(error instanceof YellowjacketServer)) {
       console.error(error.message);
       process.exit();
     }
+  });
+}
+
+function union(a, b) {
+  a = a ? a : [];
+  a = _.isArray(a) ? a : [a];
+  b = b ? b : [];
+  b = _.isArray(b) ? b : [b];
+  return _.union(a, b);
+}
+
+var BACKEND_EXT = '_backend';
+
+function prepareConfig(config) {
+  // merge plugins
+  var plugin = config.plugin,
+      options = config.options;
+
+  var schemaNames = _.union(_.get(options, 'schemas', []), ['Yellowjacket']);
+  var backendExtension = _.get(options, 'backendExtension', BACKEND_EXT);
+
+  // clone the type definitions
+  var types$$1 = _.cloneDeep(typeDefinitions);
+
+  // move the backend extension if set
+  _.forEach(types$$1, function (definition) {
+    var _backend = _.get(definition, BACKEND_EXT);
+    if (_.isObject(_backend) && backendExtension !== BACKEND_EXT) {
+      definition[backendExtension] = _backend;
+      delete definition._backend;
+    }
+  });
+
+  // add custom schema names
+  types$$1 = _.mapValues(types$$1, function (definition) {
+    return _.merge({}, definition, defineProperty({}, backendExtension, {
+      schema: schemaNames
+    }));
+  });
+
+  // merge config
+  return _.merge({}, config, {
+    types: types$$1,
+    plugin: union(plugin, FactoryTypePlugin),
+    extension: backendExtension
   });
 }
 
@@ -2003,9 +1988,7 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     var connection = arguments[4];
     classCallCheck(this, YellowjacketRethinkDBBackend);
 
-    config = mergeConfig(config);
-
-    var _this = possibleConstructorReturn(this, (YellowjacketRethinkDBBackend.__proto__ || Object.getPrototypeOf(YellowjacketRethinkDBBackend)).call(this, namespace, graphql, factory, r, config, connection));
+    var _this = possibleConstructorReturn(this, (YellowjacketRethinkDBBackend.__proto__ || Object.getPrototypeOf(YellowjacketRethinkDBBackend)).call(this, namespace, graphql, factory, r, prepareConfig(config), connection));
 
     _this.type = 'YellowjacketRethinkDBBackend';
     _this.CONST = CONST;
@@ -2016,10 +1999,9 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     };
 
     // add actions and scheduler and logger
-    var _config = config,
-        actions = _config.actions,
-        scheduler = _config.scheduler,
-        logger = _config.logger;
+    var actions = config.actions,
+        scheduler = config.scheduler,
+        logger = config.logger;
 
 
     if (_.isFunction(actions) || _.isObject(actions)) {
@@ -2045,49 +2027,45 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 
     // add the cli method
     _this.cli = cli.bind(_this);
-
-    // add additional actions
-    _this.addActions = function (actions) {
-      if (!_.isFunction(actions) && !_.isObject(actions)) return;
-      // if actions is a function it takes the backend as its argument
-      // otherwise merge with the existing actions
-      actions = _.isFunction(actions) ? actions(_this) : actions;
-      _this.actions = _.merge({}, _this.actions, actions);
-    };
-
-    // add events
-    _this.addEvents = function (events) {
-      if (_.has(events, 'local')) _.merge(_this.events.local, events.local);
-      if (_.has(events, 'socket')) _.merge(_this.events.socket, events.socket);
-    };
-
-    _this.client = function (options) {
-      return YellowjacketClient$1(_this, options);
-    };
-
-    _this.createServer = function (options) {
-      return YellowJacketServer$1(_this, options);
-    };
     return _this;
   }
 
+  createClass(YellowjacketRethinkDBBackend, [{
+    key: 'addActions',
+    value: function addActions(actions) {
+      if (!_.isFunction(actions) && !_.isObject(actions)) return;
+      // if actions is a function it takes the backend as its argument
+      // otherwise merge with the existing actions
+      actions = _.isFunction(actions) ? actions(this) : actions;
+      this.actions = _.merge({}, this.actions, actions);
+    }
+  }, {
+    key: 'addEvents',
+    value: function addEvents(events) {
+      if (_.has(events, 'local')) _.merge(this.events.local, events.local);
+      if (_.has(events, 'socket')) _.merge(this.events.socket, events.socket);
+    }
+  }, {
+    key: 'client',
+    value: function client(options) {
+      return YellowjacketClient(this, options);
+    }
+  }, {
+    key: 'createServer',
+    value: function createServer(options) {
+      return new YellowjacketServer(this, options);
+    }
+  }]);
   return YellowjacketRethinkDBBackend;
 }(graphqlFactoryBackend.GraphQLFactoryRethinkDBBackend);
 
-// helper function to instantiate a new backend
-var rethinkdb = function (namespace, graphql, r, config, connection) {
-  return new YellowjacketRethinkDBBackend(namespace, graphql, r, config, connection);
-};
-
 var index = {
-  rethinkdb: rethinkdb,
   YellowjacketRethinkDBBackend: YellowjacketRethinkDBBackend,
-  client: YellowjacketClient$1,
   YellowjacketClient: YellowjacketClient,
-  server: YellowJacketServer$1,
-  YellowjacketServer: YellowJacketServer$1
+  YellowjacketServer: YellowjacketServer
 };
 
-exports.rethinkdb = rethinkdb;
 exports.YellowjacketRethinkDBBackend = YellowjacketRethinkDBBackend;
+exports.YellowjacketClient = YellowjacketClient;
+exports.YellowjacketServer = YellowjacketServer;
 exports['default'] = index;

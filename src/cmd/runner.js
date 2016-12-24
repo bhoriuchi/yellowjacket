@@ -1,7 +1,8 @@
 import _ from 'lodash'
 import factory from 'graphql-factory'
-import YellowJacketServer from '../server/index'
+import YellowjacketServer from '../server/index'
 import YellowjacketClient from '../client/index'
+
 import { LOG_LEVELS, EVENTS } from '../common/const'
 let {
   OK, STOP, SCHEDULE, SCHEDULE_ACCEPT, SCHEDULE_ERROR, MAINTENANCE_ENTER, MAINTENANCE_EXIT, MAINTENANCE_ERROR,
@@ -32,11 +33,11 @@ export function updateRunner (args) {
 }
 
 export function startRunner (options) {
-  return YellowJacketServer(this, options)
+  return new YellowjacketServer(this, options)
 }
 
 export function scheduleRunner ({ host, port, action, context, loglevel = LOG_LEVELS.info }) {
-  let client = YellowjacketClient(this, { loglevel })
+  let client = new YellowjacketClient(this, { loglevel })
 
   return new Promise ((resolve, reject) => {
     client.emit(
@@ -60,7 +61,7 @@ export function scheduleRunner ({ host, port, action, context, loglevel = LOG_LE
 }
 
 export function stopRunner ({ host, port, loglevel = LOG_LEVELS.info }) {
-  let client = YellowjacketClient(this, { loglevel })
+  let client = new YellowjacketClient(this, { loglevel })
 
   return new Promise ((resolve, reject) => {
     client.emit(
@@ -82,7 +83,7 @@ export function stopRunner ({ host, port, loglevel = LOG_LEVELS.info }) {
 }
 
 export function maintenanceRunner ({ host, port, exit, reason, loglevel = LOG_LEVELS.info }) {
-  let client = YellowjacketClient(this, { loglevel })
+  let client = new YellowjacketClient(this, { loglevel })
 
   let EVT = exit ? MAINTENANCE_EXIT : MAINTENANCE_ENTER
 

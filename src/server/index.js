@@ -20,7 +20,7 @@ import { RunnerNodeStateEnum } from '../graphql/types/index'
 let { values: { ONLINE, MAINTENANCE } } = RunnerNodeStateEnum
 let { DISCONNECT, RUN } = EVENTS
 
-export class YellowJacketServer {
+export default class YellowjacketServer {
   constructor (backend, options = {}) {
     let { host, port, token, socket, server } = options
     socket = socket || { secure: false, timeout: 2000 }
@@ -221,8 +221,4 @@ export class YellowJacketServer {
       }
     }
   }
-}
-
-export default function (backend, options) {
-  return new YellowJacketServer(backend, options)
 }

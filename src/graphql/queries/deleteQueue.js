@@ -1,7 +1,7 @@
 import _ from 'lodash'
 
 export default function deleteQueue (id) {
-  return this.lib.YJRunner(`mutation Mutation
+  return this.lib.Yellowjacket(`mutation Mutation
   {
     deleteRunnerQueue (id: "${id}")
   }`)
