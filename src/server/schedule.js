@@ -5,7 +5,6 @@ import RunnerNodeStateEnum from '../graphql/types/RunnerNodeStateEnum'
 import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
 let { values: { ONLINE } } = RunnerNodeStateEnum
 let { values: { SCHEDULED} } = RunnerQueueStateEnum
-let { utils: { Enum } } = factory
 
 let { STATUS, SCHEDULE_ERROR, SCHEDULE_ACCEPT, RUN, OK } = EVENTS
 let source = 'server/schedule'
@@ -46,7 +45,7 @@ export function checkRunners (context, queue, list, socket, requestId) {
     return this.queries.updateQueue({
       id: queue.id,
       runner: runner.id,
-      state: Enum(SCHEDULED)
+      state: `Enum::${SCHEDULED}`
     })
       .then(() => {
         this.log.debug({ server: this._server, runner: runner.id, queue: queue.id }, 'successfully scheduled queue')
@@ -109,7 +108,7 @@ export function setSchedule (action, context, queue, runners, socket, requestId)
 
 // get a list of online runners
 export function getOnlineRunner (action, context, queue, socket, requestId) {
-  return this.queries.readRunner({ state: Enum(ONLINE) })
+  return this.queries.readRunner({ state: `Enum::${ONLINE}` })
     .then((runners) => {
       this.log.debug({ server: this._server, source}, 'got online runners')
       return setSchedule.call(this, action, context, queue, runners, socket, requestId)

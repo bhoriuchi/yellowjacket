@@ -4,11 +4,10 @@ import RunnerNodeStateEnum from '../graphql/types/RunnerNodeStateEnum'
 import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
 let { values: { ONLINE } } = RunnerNodeStateEnum
 let { values: { SCHEDULED, RUNNING, FAILED, COMPLETE } } = RunnerQueueStateEnum
-let { utils: { Enum } } = factory
 
 // marks failed tasks and logs the error
 export function setTaskFailed (id, error) {
-  return this.queries.updateQueue({ id, state: Enum(FAILED) })
+  return this.queries.updateQueue({ id, state: `Enum::${FAILED}` })
     .then(() => {
       this.log.error({ server: this._server, error, task: id }, 'task failed')
     })
@@ -47,7 +46,7 @@ export function runTask (task) {
   // add the task to the running object to prevent duplicate runs and potentially use for load balancing
   this._running[id] = { action, started: new Date() }
 
-  return this.queries.updateQueue({ id, state: Enum(RUNNING) })
+  return this.queries.updateQueue({ id, state: `Enum::${RUNNING}` })
     .then(() => {
       try {
         let taskRun = this.actions[action](this, task, doneTask.call(this, id))
@@ -79,7 +78,7 @@ export function resumeTask (taskId, data) {
 
 // gets the tasks assigned to this runner
 export function getAssigned () {
-  return this.queries.readQueue({ runner: this.id, state: Enum(SCHEDULED) })
+  return this.queries.readQueue({ runner: this.id, state: `Enum::${SCHEDULED}` })
     .then((tasks) => {
       this.log.trace({ server: this._server }, 'acquired tasks')
       _.forEach(tasks, (task) => {
