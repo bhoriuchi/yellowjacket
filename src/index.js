@@ -1,4 +1,4 @@
-import YellowjacketRethinkDBBackend from './backend/rethinkdb/index'
+import YellowjacketRethinkDBBackend from './backend/rethinkdb/YellowjacketRethinkDBBackend'
 import YellowjacketClient from './client/index'
 import YellowjacketServer from './server/index'
 

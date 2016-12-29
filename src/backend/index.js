@@ -1,7 +1,7 @@
-import rethinkdb from './rethinkdb/index'
+import YellowjacketRethinkDBBackend from './rethinkdb/YellowjacketRethinkDBBackend'
 
-export { rethinkdb }
+export { YellowjacketRethinkDBBackend }
 
 export default {
-  rethinkdb
+  YellowjacketRethinkDBBackend
 }
