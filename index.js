@@ -871,7 +871,6 @@ function startListeners$1() {
 
 var ONLINE$1 = RunnerNodeStateEnum.values.ONLINE;
 var SCHEDULED = RunnerQueueStateEnum.values.SCHEDULED;
-var Enum = factory.utils.Enum;
 var STATUS$1 = EVENTS.STATUS;
 var SCHEDULE_ERROR$2 = EVENTS.SCHEDULE_ERROR;
 var SCHEDULE_ACCEPT$1 = EVENTS.SCHEDULE_ACCEPT;
@@ -916,7 +915,7 @@ function checkRunners(context, queue, list, socket, requestId) {
     return _this2.queries.updateQueue({
       id: queue.id,
       runner: runner.id,
-      state: Enum(SCHEDULED)
+      state: 'Enum::' + SCHEDULED
     }).then(function () {
       _this2.log.debug({ server: _this2._server, runner: runner.id, queue: queue.id }, 'successfully scheduled queue');
       _this2.emit(runner.host, runner.port, RUN$2, { requestId: requestId }, defineProperty({}, OK$2, function () {
@@ -971,7 +970,7 @@ function setSchedule(action, context, queue, runners, socket, requestId) {
 function getOnlineRunner(action, context, queue, socket, requestId) {
   var _this4 = this;
 
-  return this.queries.readRunner({ state: Enum(ONLINE$1) }).then(function (runners) {
+  return this.queries.readRunner({ state: 'Enum::' + ONLINE$1 }).then(function (runners) {
     _this4.log.debug({ server: _this4._server, source: source }, 'got online runners');
     return setSchedule.call(_this4, action, context, queue, runners, socket, requestId);
   }).catch(function (error) {
@@ -1052,14 +1051,13 @@ var SCHEDULED$1 = _RunnerQueueStateEnum.SCHEDULED;
 var RUNNING = _RunnerQueueStateEnum.RUNNING;
 var FAILED = _RunnerQueueStateEnum.FAILED;
 var COMPLETE = _RunnerQueueStateEnum.COMPLETE;
-var Enum$1 = factory.utils.Enum;
 
 // marks failed tasks and logs the error
 
 function setTaskFailed(id, error) {
   var _this = this;
 
-  return this.queries.updateQueue({ id: id, state: Enum$1(FAILED) }).then(function () {
+  return this.queries.updateQueue({ id: id, state: 'Enum::' + FAILED }).then(function () {
     _this.log.error({ server: _this._server, error: error, task: id }, 'task failed');
   }).catch(function (error) {
     _this.log.error({ server: _this._server, error: error, task: id }, 'fail status update failed');
@@ -1102,7 +1100,7 @@ function runTask(task) {
   // add the task to the running object to prevent duplicate runs and potentially use for load balancing
   this._running[id] = { action: action, started: new Date() };
 
-  return this.queries.updateQueue({ id: id, state: Enum$1(RUNNING) }).then(function () {
+  return this.queries.updateQueue({ id: id, state: 'Enum::' + RUNNING }).then(function () {
     try {
       var taskRun = _this4.actions[action](_this4, task, doneTask.call(_this4, id));
       if (_this4.isPromise(taskRun)) {
@@ -1137,7 +1135,7 @@ function resumeTask(taskId, data) {
 function getAssigned() {
   var _this6 = this;
 
-  return this.queries.readQueue({ runner: this.id, state: Enum$1(SCHEDULED$1) }).then(function (tasks) {
+  return this.queries.readQueue({ runner: this.id, state: 'Enum::' + SCHEDULED$1 }).then(function (tasks) {
     _this6.log.trace({ server: _this6._server }, 'acquired tasks');
     _.forEach(tasks, function (task) {
       // do not run the task if its already running
