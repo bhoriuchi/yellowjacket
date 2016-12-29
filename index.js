@@ -1966,10 +1966,10 @@ function prepareConfig(config) {
   });
 
   // add custom schema names
-  types$$1 = _.mapValues(types$$1, function (definition) {
-    return _.merge({}, definition, defineProperty({}, backendExtension, {
-      schema: schemaNames
-    }));
+  _.forEach(types$$1, function (definition) {
+    if (_.has(definition, '["' + backendExtension + '"]')) {
+      definition[backendExtension].schema = schemaNames;
+    }
   });
 
   // merge config

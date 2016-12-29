@@ -24,12 +24,10 @@ export function prepareConfig (config) {
   })
 
   // add custom schema names
-  types = _.mapValues(types, (definition) => {
-    return _.merge({}, definition, {
-      [backendExtension]: {
-        schema: schemaNames
-      }
-    })
+  _.forEach(types, (definition) => {
+    if (_.has(definition, `["${backendExtension}"]`)) {
+      definition[backendExtension].schema = schemaNames
+    }
   })
 
   // merge config
