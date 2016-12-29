@@ -19,8 +19,8 @@
   },
   "author": "Branden Horiuchi <bhoriuchi@gmail.com>",
   "dependencies": {
-    "graphql-factory": "^1.0.0",
-    "graphql-factory-types": "^0.1.1",
+    "graphql-factory": "git+https://github.com/graphql-factory/graphql-factory#development",
+    "graphql-factory-types": "^0.2.0",
     "graphql-factory-backend": "git+https://github.com/graphql-factory/graphql-factory-backend.git#development",
     "graphql-obj2arg": "^0.1.0",
     "hat": "^0.0.3",
