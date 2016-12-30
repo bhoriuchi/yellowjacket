@@ -195,7 +195,7 @@ export default class YellowjacketServer {
 
   makeLog (logger) {
     let updateArgs = (args) => {
-      if (args.length && _.isObject(args[0])) args[0] = _.merge({ app: this._appName, server: this._server }, args[0])
+      if (args.length && _.isObject(args[0])) args[0] = _.merge({ server: this._server }, args[0])
       else args = [obj].concat(args)
       return args
     }

@@ -1509,7 +1509,7 @@ var YellowjacketServer = function () {
       var _this3 = this;
 
       var updateArgs = function updateArgs(args) {
-        if (args.length && _.isObject(args[0])) args[0] = _.merge({ app: _this3._appName, server: _this3._server }, args[0]);else args = [obj].concat(args);
+        if (args.length && _.isObject(args[0])) args[0] = _.merge({ server: _this3._server }, args[0]);else args = [obj].concat(args);
         return args;
       };
 
