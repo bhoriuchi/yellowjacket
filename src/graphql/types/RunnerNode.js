@@ -41,15 +41,19 @@ export default {
     mutation: {
       create: {
         before (fnArgs, backend, done) {
-          let { args } = fnArgs
-          if (!args.host) return done(new Error('Missing required field host'))
-          if (!args.port) return done(new Error('Missing required field port'))
+          try {
+            let { args } = fnArgs
+            if (!args.host) return done(new Error('Missing required field host'))
+            if (!args.port) return done(new Error('Missing required field port'))
 
-          delete args.id
-          delete args.checkin
+            delete args.id
+            delete args.checkin
 
-          args.state = OFFLINE
-          return done()
+            args.state = OFFLINE
+            return done()
+          } catch (err) {
+            return done(err)
+          }
         }
       },
       checkinRunnerNode: {

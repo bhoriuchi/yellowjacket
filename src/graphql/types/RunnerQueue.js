@@ -39,21 +39,31 @@ export default {
     mutation: {
       create: {
         before (fnArgs, backend, done) {
-          let { args } = fnArgs
-          return backend.now((err, now) => {
-            if (err) return done(err)
-            args.create = now
-            args.updated = now
-          })
+          try {
+            let { args } = fnArgs
+            return backend.now((err, now) => {
+              if (err) return done(err)
+              args.create = now
+              args.updated = now
+              return done()
+            })
+          } catch (err) {
+            return done(err)
+          }
         }
       },
       update: {
         before (fnArgs, backend, done) {
-          let { args } = fnArgs
-          return backend.now((err, now) => {
-            if (err) return done(err)
-            args.updated = now
-          })
+          try {
+            let { args } = fnArgs
+            return backend.now((err, now) => {
+              if (err) return done(err)
+              args.updated = now
+              return done()
+            })
+          } catch (err) {
+            return done(err)
+          }
         }
       }
     }

@@ -355,16 +355,20 @@ var RunnerNode = {
     mutation: {
       create: {
         before: function before(fnArgs, backend, done) {
-          var args = fnArgs.args;
+          try {
+            var args = fnArgs.args;
 
-          if (!args.host) return done(new Error('Missing required field host'));
-          if (!args.port) return done(new Error('Missing required field port'));
+            if (!args.host) return done(new Error('Missing required field host'));
+            if (!args.port) return done(new Error('Missing required field port'));
 
-          delete args.id;
-          delete args.checkin;
+            delete args.id;
+            delete args.checkin;
 
-          args.state = OFFLINE$1;
-          return done();
+            args.state = OFFLINE$1;
+            return done();
+          } catch (err) {
+            return done(err);
+          }
         }
       },
       checkinRunnerNode: {
@@ -378,6 +382,101 @@ var RunnerNode = {
       }
     }
   }
+};
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
+  return typeof obj;
+} : function (obj) {
+  return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+};
+
+
+
+
+
+
+
+
+
+
+
+var classCallCheck = function (instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+};
+
+var createClass = function () {
+  function defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];
+      descriptor.enumerable = descriptor.enumerable || false;
+      descriptor.configurable = true;
+      if ("value" in descriptor) descriptor.writable = true;
+      Object.defineProperty(target, descriptor.key, descriptor);
+    }
+  }
+
+  return function (Constructor, protoProps, staticProps) {
+    if (protoProps) defineProperties(Constructor.prototype, protoProps);
+    if (staticProps) defineProperties(Constructor, staticProps);
+    return Constructor;
+  };
+}();
+
+
+
+
+
+var defineProperty = function (obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
+};
+
+
+
+var inherits = function (subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+  }
+
+  subClass.prototype = Object.create(superClass && superClass.prototype, {
+    constructor: {
+      value: subClass,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    }
+  });
+  if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+};
+
+
+
+
+
+
+
+
+
+
+
+var possibleConstructorReturn = function (self, call) {
+  if (!self) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }
+
+  return call && (typeof call === "object" || typeof call === "function") ? call : self;
 };
 
 var RunnerQueue = {
@@ -421,23 +520,45 @@ var RunnerQueue = {
     mutation: {
       create: {
         before: function before(fnArgs, backend, done) {
-          var args = fnArgs.args;
+          try {
+            var _ret = function () {
+              var args = fnArgs.args;
 
-          return backend.now(function (err, now) {
-            if (err) return done(err);
-            args.create = now;
-            args.updated = now;
-          });
+              return {
+                v: backend.now(function (err, now) {
+                  if (err) return done(err);
+                  args.create = now;
+                  args.updated = now;
+                  return done();
+                })
+              };
+            }();
+
+            if ((typeof _ret === 'undefined' ? 'undefined' : _typeof(_ret)) === "object") return _ret.v;
+          } catch (err) {
+            return done(err);
+          }
         }
       },
       update: {
         before: function before(fnArgs, backend, done) {
-          var args = fnArgs.args;
+          try {
+            var _ret2 = function () {
+              var args = fnArgs.args;
 
-          return backend.now(function (err, now) {
-            if (err) return done(err);
-            args.updated = now;
-          });
+              return {
+                v: backend.now(function (err, now) {
+                  if (err) return done(err);
+                  args.updated = now;
+                  return done();
+                })
+              };
+            }();
+
+            if ((typeof _ret2 === 'undefined' ? 'undefined' : _typeof(_ret2)) === "object") return _ret2.v;
+          } catch (err) {
+            return done(err);
+          }
         }
       }
     }
@@ -569,85 +690,6 @@ var basicLogger = function () {
       }
     }
   };
-};
-
-var classCallCheck = function (instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-};
-
-var createClass = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];
-      descriptor.enumerable = descriptor.enumerable || false;
-      descriptor.configurable = true;
-      if ("value" in descriptor) descriptor.writable = true;
-      Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }
-
-  return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);
-    if (staticProps) defineProperties(Constructor, staticProps);
-    return Constructor;
-  };
-}();
-
-
-
-
-
-var defineProperty = function (obj, key, value) {
-  if (key in obj) {
-    Object.defineProperty(obj, key, {
-      value: value,
-      enumerable: true,
-      configurable: true,
-      writable: true
-    });
-  } else {
-    obj[key] = value;
-  }
-
-  return obj;
-};
-
-
-
-var inherits = function (subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-  }
-
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-};
-
-
-
-
-
-
-
-
-
-
-
-var possibleConstructorReturn = function (self, call) {
-  if (!self) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }
-
-  return call && (typeof call === "object" || typeof call === "function") ? call : self;
 };
 
 var YellowjacketTokenStore = function () {
