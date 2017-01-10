@@ -21,7 +21,7 @@
   "dependencies": {
     "graphql-factory": "git+https://github.com/graphql-factory/graphql-factory#development",
     "graphql-factory-types": "^0.2.0",
-    "graphql-factory-backend": "git+https://github.com/graphql-factory/graphql-factory-backend.git#development",
+    "graphql-factory-backend": "git+https://github.com/graphql-factory/graphql-factory-backend.git#cluster",
     "graphql-obj2arg": "^0.1.0",
     "hat": "^0.0.3",
     "internal-ip": "^1.2.0",

@@ -13,7 +13,8 @@ import CONST from '../../common/const'
 import installData from '../installData'
 import YellowjacketServer from '../../server/index'
 import { prepareConfig } from '../util'
-import { functions, queries } from '../../graphql/index'
+import { queries } from '../../graphql/index'
+import functions from './functions/index'
 
 /**
  * Yellowjacket rethinkdb backend

@@ -9,6 +9,10 @@ let backend = (new YellowjacketRethinkDBBackend('_yj', graphql, rethinkdbdash(),
       done()
     }
   }
-})).make()
+}))
 
-backend.cli()
+backend.make((err) => {
+  if (err) throw err
+  // console.log(backend.lib._definitions.definition.types.backendYellowjacketMutation.fields.checkinRunnerNode)
+  backend.cli()
+})

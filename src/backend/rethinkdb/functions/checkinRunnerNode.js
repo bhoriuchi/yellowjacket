@@ -1,9 +1,32 @@
-import StateEnum from '../../graphql/types/RunnerNodeStateEnum'
+import StateEnum from '../../../graphql/types/RunnerNodeStateEnum'
 let { OFFLINE, MAINTENANCE } = StateEnum.values
 
 export default function (backend) {
   return function (source, args, context, info) {
-    let { q } = backend
+    let { r, _connection } = backend
+    let { id, state, offlineAfter } = args
+    let collection = backend.getCollection('RunnerNode')
+
+    return collection.get(id).eq(null)
+      .branch(
+        r.error('runner not found'),
+        collection.get(id).update({ checkin: r.now(), state })
+      )
+      .do(() => {
+        return collection.filter((node) => {
+          return node('id')
+            .ne(id)
+            .and(node('state').ne(MAINTENANCE))
+            .and(
+              node('checkin')
+                .eq(null)
+                .or(r.now().sub(node('checkin')).ge(offlineAfter))
+            )
+        })
+          .update({ state: OFFLINE })
+      })
+      .do(() => true)
+
 
     return q.type('RunnerNode').update({
       id: args.id,
@@ -31,6 +54,6 @@ export default function (backend) {
           .value()
       })
       .do(() => true)
-      .run()
+      .run(_connection)
   }
 }
