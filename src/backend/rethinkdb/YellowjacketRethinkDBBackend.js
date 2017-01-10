@@ -1,21 +1,38 @@
+// npm modules
 import _ from 'lodash'
 import factory from 'graphql-factory'
+import rethinkdown from 'rethinkdown'
 import { GraphQLFactoryRethinkDBBackend } from 'graphql-factory-backend'
-import { functions, queries } from '../../graphql/index'
-import installData from '../installData'
+
+// local modules
 import basicLogger from '../../common/basicLogger'
-import cmd from '../../cmd/index'
 import cli from '../../cli/index'
 import client from '../../client/index'
-import YellowjacketServer from '../../server/index'
+import cmd from '../../cmd/index'
 import CONST from '../../common/const'
+import installData from '../installData'
+import YellowjacketServer from '../../server/index'
 import { prepareConfig } from '../util'
+import { functions, queries } from '../../graphql/index'
 
+/**
+ * Yellowjacket rethinkdb backend
+ * @extends GraphQLFactoryRethinkDBBackend
+ */
 export default class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkDBBackend {
+  /**
+   *
+   * @param {string} namespace - namespace to store global data in
+   * @param {object} graphql - instance of graphql
+   * @param {rethinkdb|rethinkdbdash} r - rethinkdb driver
+   * @param {object} config - configuration object
+   * @param {object} [connection] - rethinkdb connection
+   */
   constructor (namespace, graphql, r, config = {}, connection) {
     super(namespace, graphql, factory, r, prepareConfig(config), connection)
     this.type = 'YellowjacketRethinkDBBackend'
     this.CONST = CONST
+    this.skiffdb = null
     this.actions = {}
     this.events = {
       local: {},
@@ -48,6 +65,9 @@ export default class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkD
 
     // add the cli method
     this.cli = cli.bind(this)
+
+    // set up skiff
+    this.setSkiffDB(config)
   }
 
   addActions (actions) {
@@ -67,7 +87,13 @@ export default class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkD
     return client(this, options)
   }
 
-  createServer (options) {
-    return new YellowjacketServer(this, options)
+  createServer (options, callback) {
+    return new YellowjacketServer(this, options, callback)
+  }
+
+  setSkiffDB (config) {
+    let options = _.get(config, 'options.skiff.db', {})
+    let table = _.get(config, 'options.skiff.table', 'cluster_consensus')
+    this.skiffdb = rethinkdown(this.r, this._defaultStore, options)(table)
   }
 }

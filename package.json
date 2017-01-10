@@ -24,12 +24,16 @@
     "graphql-factory-backend": "git+https://github.com/graphql-factory/graphql-factory-backend.git#development",
     "graphql-obj2arg": "^0.1.0",
     "hat": "^0.0.3",
+    "internal-ip": "^1.2.0",
     "jsonwebtoken": "^7.2.1",
     "lodash": "^4.17.2",
     "nested-opts": "^0.1.0",
+    "rethinkdown": "^0.2.0",
+    "skiff": "^1.10.0",
     "socket.io": "^1.7.2",
     "socket.io-client": "^1.7.2",
-    "socketio-jwt": "^4.5.0"
+    "socketio-jwt": "^4.5.0",
+    "swim": "^0.3.1"
   },
   "devDependencies": {
     "bunyan": "^1.8.1",

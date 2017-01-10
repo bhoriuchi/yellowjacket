@@ -1,27 +1,46 @@
-import _ from 'lodash'
-import os from 'os'
+// core modules
 import Events from 'events'
 import http from 'http'
+import os from 'os'
+
+// npm modules
+import _ from 'lodash'
 import SocketServer from 'socket.io'
-import queries from '../graphql/queries/index'
-import CONST from '../common/const'
-import { LOG_LEVELS, EVENTS } from '../common/const'
-import tokenStore from '../common/token'
+
+// local modules
 import basicLogger from '../common/basicLogger'
-import startListeners from './startListeners'
-import { addListeners } from './startListeners'
-import scheduleMethod from './schedule'
-import maintenanceMethod from './maintenance'
-import runMethod from './run'
-import { doneTask, resumeTask } from './run'
-import stopMethod from './stop'
+import Cluster from './cluster'
+import CONST from '../common/const'
 import emitMethod from '../common/emit'
+import maintenanceMethod from './maintenance'
+import queries from '../graphql/queries/index'
+import runMethod from './run'
+import scheduleMethod from './schedule'
+import startListeners from './startListeners'
+import stopMethod from './stop'
+import tokenStore from '../common/token'
+import { addListeners } from './startListeners'
+import { doneTask, resumeTask } from './run'
+import { LOG_LEVELS, EVENTS } from '../common/const'
 import { RunnerNodeStateEnum } from '../graphql/types/index'
+
+// constants
 let { values: { ONLINE, MAINTENANCE } } = RunnerNodeStateEnum
 let { DISCONNECT, RUN } = EVENTS
 
+/**
+ * Yellowjacket server class
+ *
+ */
 export default class YellowjacketServer {
-  constructor (backend, options = {}) {
+  constructor (backend, options, callback) {
+    if (_.isFunction(options)) {
+      callback = options
+      options = {}
+    }
+    callback = _.isFunction(callback) ? callback : () => true
+    options = _.isObject(options) ? options : {}
+
     let { host, port, token, socket, server } = options
     socket = socket || { secure: false, timeout: 2000 }
     server = server || {}
@@ -67,6 +86,7 @@ export default class YellowjacketServer {
 
     // get the global settings
     return this.queries.getSettings()
+      // set the application settings on the server
       .then((settings) => {
         this._appName = settings.appName || 'YELLOWJACKET'
         this._checkinFrequency = settings.checkinFrequency || 30
@@ -75,41 +95,47 @@ export default class YellowjacketServer {
         this._offlineAfter = this._checkinFrequency * this._offlineAfterPolls
 
         this.log.info({ server: this._server }, 'starting server')
+        return settings
+      })
 
-        // get self
-        return this.queries.getSelf()
-          .then((self) => {
-            this.id = self.id
-            this.state = self.state === MAINTENANCE ? MAINTENANCE : ONLINE
+      // get the current server and set its id and state
+      .then(() => this.queries.getSelf())
+      .then((self) => {
+        this.id = self.id
+        this.state = self.state === MAINTENANCE ? MAINTENANCE : ONLINE
+        return self
+      })
 
-            // check in
-            return this.queries.checkIn(true)
-              .then(() => {
-                // set up socket.io server
-                if (!server.io && !server.app) {
-                  this._app = http.createServer((req, res) => {
-                    res.writeHead(200)
-                    res.end(`${this._server}`)
-                  })
-                  this._app.listen(port)
-                  this._io = new SocketServer(this._app)
-                } else if (server.app && !server.io) {
-                  this._app = server.app
-                  this._io = new SocketServer(this._app)
-                } else {
-                  this._io = server.io
-                }
-
-                // if the state is online start the listeners
-                if (this.state === ONLINE) this.startListeners(server.useConnection)
-                return this
-              })
+      // check in and start the server
+      .then(() => this.queries.checkIn(true))
+      .then(() => {
+        // set up socket.io server
+        if (!server.io && !server.app) {
+          this._app = http.createServer((req, res) => {
+            res.writeHead(200)
+            res.end(`${this._server}`)
           })
+          this._app.listen(port)
+          this._io = new SocketServer(this._app)
+        } else if (server.app && !server.io) {
+          this._app = server.app
+          this._io = new SocketServer(this._app)
+        } else {
+          this._io = server.io
+        }
 
+        // if the state is online start the listeners and initialize the cluster
+        if (this.state === ONLINE) {
+          this.startListeners(server.useConnection)
+          this.cluster = new Cluster(this)
+        }
+        callback(null, this)
+        return this
       })
       .catch((error) => {
         this.log.fatal({ server: this._server, error }, 'the server failed to start')
-        throw this
+        callback(error)
+        return Promise.reject(error)
       })
   }
 
