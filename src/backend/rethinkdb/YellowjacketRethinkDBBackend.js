@@ -1,7 +1,6 @@
 // npm modules
 import _ from 'lodash'
 import factory from 'graphql-factory'
-import rethinkdown from 'rethinkdown'
 import { GraphQLFactoryRethinkDBBackend } from 'graphql-factory-backend'
 
 // local modules
@@ -33,7 +32,6 @@ export default class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkD
     super(namespace, graphql, factory, r, prepareConfig(config), connection)
     this.type = 'YellowjacketRethinkDBBackend'
     this.CONST = CONST
-    this.skiffdb = null
     this.actions = {}
     this.events = {
       local: {},
@@ -66,9 +64,6 @@ export default class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkD
 
     // add the cli method
     this.cli = cli.bind(this)
-
-    // set up skiff
-    this.setSkiffDB(config)
   }
 
   addActions (actions) {
@@ -90,11 +85,5 @@ export default class YellowjacketRethinkDBBackend extends GraphQLFactoryRethinkD
 
   createServer (options, callback) {
     return new YellowjacketServer(this, options, callback)
-  }
-
-  setSkiffDB (config) {
-    let options = _.get(config, 'options.skiff.db', {})
-    let table = _.get(config, 'options.skiff.table', 'cluster_consensus')
-    this.skiffdb = rethinkdown(this.r, this._defaultStore, options)(table)
   }
 }

@@ -58,15 +58,18 @@ export function checkRunners (context, queue, list, socket, requestId) {
             [OK]: () => {
               let target = `${runner.host}:${runner.port}`
               this.log.trace({ server: this._server, target }, 'successfully signaled run')
+              this.send(`${SCHEDULE_ACCEPT}.${requestId}`, queue, socket)
             }
           },
           () => {
             this.log.warn({ server: this._server, target: `${runner.host}:${runner.port}`}, 'run signal failed')
+            this.send(`${SCHEDULE_ERROR}.${requestId}`, 'failed to signal run', socket)
           }
         )
       })
       .catch((error) => {
         this.log.debug({ error, server: this._server, target: `${runner.host}:${runner.port}`}, 'failed to signal run')
+        this.send(`${SCHEDULE_ERROR}.${requestId}`, 'failed to signal run', socket)
       })
   })
 }
@@ -80,7 +83,7 @@ export function setSchedule (action, context, queue, runners, socket, requestId)
         // check for error
         if (error) {
           this.log.error({ error, source, server: this._server, method: 'setSchedule'}, 'failed to set schedule')
-          if (socket) socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `failed to schedule ${action} because ${error}`)
+          this.send(`${SCHEDULE_ERROR}.${requestId}`, `failed to schedule ${action} because ${error}`, socket)
           return reject(error)
         }
 
@@ -115,7 +118,7 @@ export function getOnlineRunner (action, context, queue, socket, requestId) {
     })
     .catch((error) => {
       this.log.error({ error, source, server: this._server, method: 'getOnlineRunner' }, 'failed to create queue')
-      if (socket) return socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `failed to schedule ${action}`)
+      this.send(`${SCHEDULE_ERROR}.${requestId}`, `failed to schedule ${action}`, socket)
     })
 }
 
@@ -124,12 +127,11 @@ export function createQueue (action, context, socket, requestId) {
   return this.queries.createQueue(action, context)
     .then((queue) => {
       this.log.debug({ server: this._server, source }, 'queue created')
-      if (socket) socket.emit(`${SCHEDULE_ACCEPT}.${requestId}`, {})
       return getOnlineRunner.call(this, action, context, queue, socket, requestId)
     })
     .catch((error) => {
       this.log.error({ error, source, server: this._server, method: 'createQueue' }, 'failed to create queue')
-      if (socket) return socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `failed to schedule ${action}`)
+      this.send(`${SCHEDULE_ERROR}.${requestId}`, `failed to schedule ${action}`, socket)
     })
 }
 
@@ -138,7 +140,7 @@ export function createQueue (action, context, socket, requestId) {
 export default function schedule (payload, socket, requestId) {
   if (this.state !== ONLINE) {
     this.log.debug({ server: this._server, state: this.state }, 'denied schedule request')
-    if (socket) socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `runner in state ${this.state} and cannot schedule tasks`)
+    this.send(`${SCHEDULE_ERROR}.${requestId}`, `runner state ${this.state} cannot schedule tasks`, socket)
     return Promise.reject(`runner in state ${this.state} and cannot schedule tasks`)
   }
 
@@ -146,7 +148,8 @@ export default function schedule (payload, socket, requestId) {
 
   // validate that the action is valid
   if (!_.has(this.actions, action)) {
-    if (socket) socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `${action} is not a known action`)
+    this.send(`${SCHEDULE_ERROR}.${requestId}`, `${action} is not a known action`, socket)
+
     this.log.error({ action, source }, 'invalid action requested')
     return Promise.reject('invalid action requested')
   }

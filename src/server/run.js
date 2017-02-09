@@ -1,5 +1,4 @@
 import _ from 'lodash'
-import factory from 'graphql-factory'
 import RunnerNodeStateEnum from '../graphql/types/RunnerNodeStateEnum'
 import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
 let { values: { ONLINE } } = RunnerNodeStateEnum
@@ -95,11 +94,11 @@ export function getAssigned () {
 export default function run (socket, requestId) {
   if (this.state !== ONLINE) {
     this.log.debug({ server: this._server, state: this.state }, 'denied run request')
-    if (socket) socket.emit(`${SCHEDULE_ERROR}.${requestId}`, `runner in state ${this.state} and cannot run tasks`)
+    this.send(`${SCHEDULE_ERROR}.${requestId}`, `runner in state ${this.state} and cannot run tasks`, socket)
     return Promise.reject(`runner in state ${this.state} and cannot run tasks`)
   }
 
   this.log.trace({ server: this._server }, 'checking queue')
-  if (socket) socket.emit(`${OK}.${requestId}`)
+  this.send(`${OK}.${requestId}`, undefined, socket)
   return getAssigned.call(this)
 }

@@ -6,7 +6,6 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 
 var _ = _interopDefault(require('lodash'));
 var factory = _interopDefault(require('graphql-factory'));
-var rethinkdown = _interopDefault(require('rethinkdown'));
 var graphqlFactoryBackend = require('graphql-factory-backend');
 var NestedOpts = _interopDefault(require('nested-opts'));
 var Events = _interopDefault(require('events'));
@@ -265,116 +264,6 @@ var getOptions = function () {
   return options;
 };
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
-  return typeof obj;
-} : function (obj) {
-  return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
-};
-
-
-
-
-
-
-
-
-
-
-
-var classCallCheck = function (instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-};
-
-var createClass = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];
-      descriptor.enumerable = descriptor.enumerable || false;
-      descriptor.configurable = true;
-      if ("value" in descriptor) descriptor.writable = true;
-      Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }
-
-  return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);
-    if (staticProps) defineProperties(Constructor, staticProps);
-    return Constructor;
-  };
-}();
-
-
-
-
-
-var defineProperty = function (obj, key, value) {
-  if (key in obj) {
-    Object.defineProperty(obj, key, {
-      value: value,
-      enumerable: true,
-      configurable: true,
-      writable: true
-    });
-  } else {
-    obj[key] = value;
-  }
-
-  return obj;
-};
-
-
-
-var inherits = function (subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-  }
-
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-};
-
-
-
-
-
-
-
-
-
-
-
-var possibleConstructorReturn = function (self, call) {
-  if (!self) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }
-
-  return call && (typeof call === "object" || typeof call === "function") ? call : self;
-};
-
-var Cluster = function (_Events) {
-  inherits(Cluster, _Events);
-
-  function Cluster(server) {
-    classCallCheck(this, Cluster);
-
-    var _this = possibleConstructorReturn(this, (Cluster.__proto__ || Object.getPrototypeOf(Cluster)).call(this));
-
-    _this.server = server;
-    return _this;
-  }
-
-  return Cluster;
-}(Events);
-
 var CONNECT = EVENTS.CONNECT;
 var UNAUTHORIZED = EVENTS.UNAUTHORIZED;
 var AUTHENTICATE = EVENTS.AUTHENTICATE;
@@ -538,6 +427,101 @@ var RunnerNode = {
       }
     }
   }
+};
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
+  return typeof obj;
+} : function (obj) {
+  return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+};
+
+
+
+
+
+
+
+
+
+
+
+var classCallCheck = function (instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+};
+
+var createClass = function () {
+  function defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];
+      descriptor.enumerable = descriptor.enumerable || false;
+      descriptor.configurable = true;
+      if ("value" in descriptor) descriptor.writable = true;
+      Object.defineProperty(target, descriptor.key, descriptor);
+    }
+  }
+
+  return function (Constructor, protoProps, staticProps) {
+    if (protoProps) defineProperties(Constructor.prototype, protoProps);
+    if (staticProps) defineProperties(Constructor, staticProps);
+    return Constructor;
+  };
+}();
+
+
+
+
+
+var defineProperty = function (obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
+};
+
+
+
+var inherits = function (subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+  }
+
+  subClass.prototype = Object.create(superClass && superClass.prototype, {
+    constructor: {
+      value: subClass,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    }
+  });
+  if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+};
+
+
+
+
+
+
+
+
+
+
+
+var possibleConstructorReturn = function (self, call) {
+  if (!self) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }
+
+  return call && (typeof call === "object" || typeof call === "function") ? call : self;
 };
 
 var RunnerQueue = {
@@ -984,12 +968,12 @@ function getAssigned() {
 function run$1(socket, requestId) {
   if (this.state !== ONLINE$2) {
     this.log.debug({ server: this._server, state: this.state }, 'denied run request');
-    if (socket) socket.emit(SCHEDULE_ERROR + '.' + requestId, 'runner in state ' + this.state + ' and cannot run tasks');
+    this.send(SCHEDULE_ERROR + '.' + requestId, 'runner in state ' + this.state + ' and cannot run tasks', socket);
     return Promise.reject('runner in state ' + this.state + ' and cannot run tasks');
   }
 
   this.log.trace({ server: this._server }, 'checking queue');
-  if (socket) socket.emit(OK + '.' + requestId);
+  this.send(OK + '.' + requestId, undefined, socket);
   return getAssigned.call(this);
 }
 
@@ -1045,11 +1029,14 @@ function checkRunners(context, queue, list, socket, requestId) {
       _this2.emit(runner.host, runner.port, RUN$1, { requestId: requestId }, defineProperty({}, OK$1, function () {
         var target = runner.host + ':' + runner.port;
         _this2.log.trace({ server: _this2._server, target: target }, 'successfully signaled run');
+        _this2.send(SCHEDULE_ACCEPT + '.' + requestId, queue, socket);
       }), function () {
         _this2.log.warn({ server: _this2._server, target: runner.host + ':' + runner.port }, 'run signal failed');
+        _this2.send(SCHEDULE_ERROR$1 + '.' + requestId, 'failed to signal run', socket);
       });
     }).catch(function (error) {
       _this2.log.debug({ error: error, server: _this2._server, target: runner.host + ':' + runner.port }, 'failed to signal run');
+      _this2.send(SCHEDULE_ERROR$1 + '.' + requestId, 'failed to signal run', socket);
     });
   });
 }
@@ -1064,7 +1051,7 @@ function setSchedule(action, context, queue, runners, socket, requestId) {
         // check for error
         if (error) {
           _this3.log.error({ error: error, source: source, server: _this3._server, method: 'setSchedule' }, 'failed to set schedule');
-          if (socket) socket.emit(SCHEDULE_ERROR$1 + '.' + requestId, 'failed to schedule ' + action + ' because ' + error);
+          _this3.send(SCHEDULE_ERROR$1 + '.' + requestId, 'failed to schedule ' + action + ' because ' + error, socket);
           return reject(error);
         }
 
@@ -1099,7 +1086,7 @@ function getOnlineRunner(action, context, queue, socket, requestId) {
     return setSchedule.call(_this4, action, context, queue, runners, socket, requestId);
   }).catch(function (error) {
     _this4.log.error({ error: error, source: source, server: _this4._server, method: 'getOnlineRunner' }, 'failed to create queue');
-    if (socket) return socket.emit(SCHEDULE_ERROR$1 + '.' + requestId, 'failed to schedule ' + action);
+    _this4.send(SCHEDULE_ERROR$1 + '.' + requestId, 'failed to schedule ' + action, socket);
   });
 }
 
@@ -1109,11 +1096,10 @@ function createQueue$1(action, context, socket, requestId) {
 
   return this.queries.createQueue(action, context).then(function (queue) {
     _this5.log.debug({ server: _this5._server, source: source }, 'queue created');
-    if (socket) socket.emit(SCHEDULE_ACCEPT + '.' + requestId, {});
     return getOnlineRunner.call(_this5, action, context, queue, socket, requestId);
   }).catch(function (error) {
     _this5.log.error({ error: error, source: source, server: _this5._server, method: 'createQueue' }, 'failed to create queue');
-    if (socket) return socket.emit(SCHEDULE_ERROR$1 + '.' + requestId, 'failed to schedule ' + action);
+    _this5.send(SCHEDULE_ERROR$1 + '.' + requestId, 'failed to schedule ' + action, socket);
   });
 }
 
@@ -1121,7 +1107,7 @@ function createQueue$1(action, context, socket, requestId) {
 function schedule$1(payload, socket, requestId) {
   if (this.state !== ONLINE$3) {
     this.log.debug({ server: this._server, state: this.state }, 'denied schedule request');
-    if (socket) socket.emit(SCHEDULE_ERROR$1 + '.' + requestId, 'runner in state ' + this.state + ' and cannot schedule tasks');
+    this.send(SCHEDULE_ERROR$1 + '.' + requestId, 'runner state ' + this.state + ' cannot schedule tasks', socket);
     return Promise.reject('runner in state ' + this.state + ' and cannot schedule tasks');
   }
 
@@ -1131,7 +1117,8 @@ function schedule$1(payload, socket, requestId) {
   // validate that the action is valid
 
   if (!_.has(this.actions, action)) {
-    if (socket) socket.emit(SCHEDULE_ERROR$1 + '.' + requestId, action + ' is not a known action');
+    this.send(SCHEDULE_ERROR$1 + '.' + requestId, action + ' is not a known action', socket);
+
     this.log.error({ action: action, source: source }, 'invalid action requested');
     return Promise.reject('invalid action requested');
   }
@@ -1540,7 +1527,6 @@ var YellowjacketServer = function () {
       // if the state is online start the listeners and initialize the cluster
       if (_this.state === ONLINE) {
         _this.startListeners(server.useConnection);
-        _this.cluster = new Cluster(_this);
       }
       callback(null, _this);
       return _this;
@@ -1595,6 +1581,12 @@ var YellowjacketServer = function () {
     key: 'run',
     value: function run(socket, requestId) {
       return run$1.call(this, socket, requestId);
+    }
+  }, {
+    key: 'send',
+    value: function send(event, body, socket) {
+      if (socket) socket.emit(event, body);
+      this._emitter.emit(event, body);
     }
   }, {
     key: 'done',
@@ -2117,7 +2109,6 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 
     _this.type = 'YellowjacketRethinkDBBackend';
     _this.CONST = CONST;
-    _this.skiffdb = null;
     _this.actions = {};
     _this.events = {
       local: {},
@@ -2153,9 +2144,6 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
 
     // add the cli method
     _this.cli = cli.bind(_this);
-
-    // set up skiff
-    _this.setSkiffDB(config);
     return _this;
   }
 
@@ -2183,13 +2171,6 @@ var YellowjacketRethinkDBBackend = function (_GraphQLFactoryRethin) {
     key: 'createServer',
     value: function createServer(options, callback) {
       return new YellowjacketServer(this, options, callback);
-    }
-  }, {
-    key: 'setSkiffDB',
-    value: function setSkiffDB(config) {
-      var options = _.get(config, 'options.skiff.db', {});
-      var table = _.get(config, 'options.skiff.table', 'cluster_consensus');
-      this.skiffdb = rethinkdown(this.r, this._defaultStore, options)(table);
     }
   }]);
   return YellowjacketRethinkDBBackend;

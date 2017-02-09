@@ -9,7 +9,6 @@ import SocketServer from 'socket.io'
 
 // local modules
 import basicLogger from '../common/basicLogger'
-import Cluster from './cluster'
 import CONST from '../common/const'
 import emitMethod from '../common/emit'
 import maintenanceMethod from './maintenance'
@@ -127,7 +126,6 @@ export default class YellowjacketServer {
         // if the state is online start the listeners and initialize the cluster
         if (this.state === ONLINE) {
           this.startListeners(server.useConnection)
-          this.cluster = new Cluster(this)
         }
         callback(null, this)
         return this
@@ -173,6 +171,11 @@ export default class YellowjacketServer {
 
   run (socket, requestId) {
     return runMethod.call(this, socket, requestId)
+  }
+
+  send (event, body, socket) {
+    if (socket) socket.emit(event, body)
+    this._emitter.emit(event, body)
   }
 
   done (err, taskId, status, data) {

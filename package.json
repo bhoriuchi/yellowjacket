@@ -19,7 +19,7 @@
   },
   "author": "Branden Horiuchi <bhoriuchi@gmail.com>",
   "dependencies": {
-    "graphql-factory": "git+https://github.com/graphql-factory/graphql-factory#development",
+    "graphql-factory": "git+https://github.com/graphql-factory/graphql-factory#master",
     "graphql-factory-types": "^0.2.0",
     "graphql-factory-backend": "git+https://github.com/graphql-factory/graphql-factory-backend.git#cluster",
     "graphql-obj2arg": "^0.1.0",
@@ -28,12 +28,9 @@
     "jsonwebtoken": "^7.2.1",
     "lodash": "^4.17.2",
     "nested-opts": "^0.1.0",
-    "rethinkdown": "^0.2.0",
-    "skiff": "^1.10.0",
     "socket.io": "^1.7.2",
     "socket.io-client": "^1.7.2",
-    "socketio-jwt": "^4.5.0",
-    "swim": "^0.3.1"
+    "socketio-jwt": "^4.5.0"
   },
   "devDependencies": {
     "express": "^4.14.0",
