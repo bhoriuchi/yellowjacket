@@ -873,6 +873,8 @@ var SCHEDULED = _RunnerQueueStateEnum.SCHEDULED;
 var RUNNING = _RunnerQueueStateEnum.RUNNING;
 var FAILED = _RunnerQueueStateEnum.FAILED;
 var COMPLETE = _RunnerQueueStateEnum.COMPLETE;
+var SCHEDULE_ERROR = EVENTS.SCHEDULE_ERROR;
+var OK$1 = EVENTS.OK;
 
 // marks failed tasks and logs the error
 
@@ -977,7 +979,7 @@ function run$1(socket, requestId) {
   }
 
   this.log.trace({ server: this._server }, 'checking queue');
-  this.send(OK + '.' + requestId, undefined, socket);
+  this.send(OK$1 + '.' + requestId, undefined, socket);
   return getAssigned.call(this);
 }
 
@@ -987,7 +989,7 @@ var STATUS = EVENTS.STATUS;
 var SCHEDULE_ERROR$1 = EVENTS.SCHEDULE_ERROR;
 var SCHEDULE_ACCEPT = EVENTS.SCHEDULE_ACCEPT;
 var RUN$1 = EVENTS.RUN;
-var OK$1 = EVENTS.OK;
+var OK$2 = EVENTS.OK;
 
 var source = 'server/schedule';
 
@@ -1030,7 +1032,7 @@ function checkRunners(context, queue, list, socket, requestId) {
       state: 'Enum::' + SCHEDULED$1
     }).then(function () {
       _this2.log.debug({ server: _this2._server, runner: runner.id, queue: queue.id }, 'successfully scheduled queue');
-      _this2.emit(runner.host, runner.port, RUN$1, { requestId: requestId }, defineProperty({}, OK$1, function () {
+      _this2.emit(runner.host, runner.port, RUN$1, { requestId: requestId }, defineProperty({}, OK$2, function () {
         var target = runner.host + ':' + runner.port;
         _this2.log.trace({ server: _this2._server, target: target }, 'successfully signaled run');
         _this2.send(SCHEDULE_ACCEPT + '.' + requestId, queue, socket);
@@ -1701,7 +1703,7 @@ function cli(config, parser) {
 }
 
 var DISCONNECT$1 = EVENTS.DISCONNECT;
-var OK$2 = EVENTS.OK;
+var OK$3 = EVENTS.OK;
 
 var YellowjacketClient = function () {
   function YellowjacketClient(backend) {
@@ -1746,7 +1748,7 @@ var YellowjacketClient = function () {
     key: 'disconnectSocket',
     value: function disconnectSocket(host, port) {
       this.log.debug({ server: this._server, target: host + ':' + port }, 'disconnecting socket');
-      this.emit(host, port, DISCONNECT$1, undefined, OK$2, function () {
+      this.emit(host, port, DISCONNECT$1, undefined, OK$3, function () {
         return true;
       }, 500);
       var s = _.get(this._sockets, '["' + host + ':' + port + '"].socket');

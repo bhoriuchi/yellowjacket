@@ -1,8 +1,10 @@
 import _ from 'lodash'
+import { EVENTS } from '../common/const'
 import RunnerNodeStateEnum from '../graphql/types/RunnerNodeStateEnum'
 import RunnerQueueStateEnum from '../graphql/types/RunnerQueueStateEnum'
 let { values: { ONLINE } } = RunnerNodeStateEnum
 let { values: { SCHEDULED, RUNNING, FAILED, COMPLETE } } = RunnerQueueStateEnum
+let { SCHEDULE_ERROR, OK } = EVENTS
 
 // marks failed tasks and logs the error
 export function setTaskFailed (id, error) {
