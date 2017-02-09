@@ -124,7 +124,7 @@ export function getOnlineRunner (action, context, queue, socket, requestId) {
 
 // Creates a queue document immediately after receiving it then tries to schedule it
 export function createQueue (action, context, socket, requestId) {
-  return this.queries.createQueue(action, context)
+  return this.queries.createQueue(action, requestId, context)
     .then((queue) => {
       this.log.debug({ server: this._server, source }, 'queue created')
       return getOnlineRunner.call(this, action, context, queue, socket, requestId)

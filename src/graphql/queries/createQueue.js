@@ -3,11 +3,12 @@ import obj2arg from 'graphql-obj2arg'
 import RunnerQueueStateEnum from '../types/RunnerQueueStateEnum'
 let { values: { UNSCHEDULED } } = RunnerQueueStateEnum
 
-export default function createQueue (action, context) {
+export default function createQueue (action, requestId, context) {
   return this.lib.Yellowjacket(`mutation Mutation 
     {
       createRunnerQueue (
         action: "${action}",
+        requestId: "${requestId}",
         context: ${obj2arg(context)},
         state: ${UNSCHEDULED}
       ) {

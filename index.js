@@ -530,6 +530,10 @@ var RunnerQueue = {
       type: 'String',
       primary: true
     },
+    requestId: {
+      description: 'Optional request id',
+      type: 'String'
+    },
     created: {
       description: 'When the run was created',
       type: 'FactoryDateTime'
@@ -747,8 +751,8 @@ function checkIn(first) {
 var UNSCHEDULED = RunnerQueueStateEnum.values.UNSCHEDULED;
 
 
-function createQueue(action, context) {
-  return this.lib.Yellowjacket('mutation Mutation \n    {\n      createRunnerQueue (\n        action: "' + action + '",\n        context: ' + obj2arg(context) + ',\n        state: ' + UNSCHEDULED + '\n      ) {\n        id,\n        action,\n        context\n      }  \n    }').then(function (result) {
+function createQueue(action, requestId, context) {
+  return this.lib.Yellowjacket('mutation Mutation \n    {\n      createRunnerQueue (\n        action: "' + action + '",\n        requestId: "' + requestId + '",\n        context: ' + obj2arg(context) + ',\n        state: ' + UNSCHEDULED + '\n      ) {\n        id,\n        action,\n        context\n      }  \n    }').then(function (result) {
     var queue = _.get(result, 'data.createRunnerQueue');
     if (result.errors) throw new Error(result.errors);
     if (!queue) throw new Error('Could not create queue');
@@ -1094,7 +1098,7 @@ function getOnlineRunner(action, context, queue, socket, requestId) {
 function createQueue$1(action, context, socket, requestId) {
   var _this5 = this;
 
-  return this.queries.createQueue(action, context).then(function (queue) {
+  return this.queries.createQueue(action, requestId, context).then(function (queue) {
     _this5.log.debug({ server: _this5._server, source: source }, 'queue created');
     return getOnlineRunner.call(_this5, action, context, queue, socket, requestId);
   }).catch(function (error) {

@@ -4,6 +4,10 @@ export default {
       type: 'String',
       primary: true
     },
+    requestId: {
+      description: 'Optional request id',
+      type: 'String'
+    },
     created: {
       description: 'When the run was created',
       type: 'FactoryDateTime'
