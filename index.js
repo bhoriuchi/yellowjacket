@@ -813,7 +813,7 @@ function getSettings() {
 }
 
 function readQueue(args) {
-  return this.lib.Yellowjacket('\n  {\n    readRunnerQueue (' + obj2arg(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      created,\n      updated,\n      runner,\n      state,\n      action,\n      context\n    }\n  }').then(function (result) {
+  return this.lib.Yellowjacket('\n  {\n    readRunnerQueue (' + obj2arg(args, { noOuterBraces: true }) + ')\n    {\n      id,\n      requestId,\n      created,\n      updated,\n      runner,\n      state,\n      action,\n      context\n    }\n  }').then(function (result) {
     var tasks = _.get(result, 'data.readRunnerQueue');
     if (result.errors) throw new Error(result.errors);
     if (!tasks) throw new Error('No tasks');
@@ -1035,7 +1035,6 @@ function checkRunners(context, queue, list, socket, requestId) {
       _this2.emit(runner.host, runner.port, RUN$1, { requestId: requestId }, defineProperty({}, OK$2, function () {
         var target = runner.host + ':' + runner.port;
         _this2.log.trace({ server: _this2._server, target: target }, 'successfully signaled run');
-        _this2.send(SCHEDULE_ACCEPT + '.' + requestId, queue, socket);
       }), function () {
         _this2.log.warn({ server: _this2._server, target: runner.host + ':' + runner.port }, 'run signal failed');
         _this2.send(SCHEDULE_ERROR$1 + '.' + requestId, 'failed to signal run', socket);
@@ -1102,6 +1101,7 @@ function createQueue$1(action, context, socket, requestId) {
 
   return this.queries.createQueue(action, requestId, context).then(function (queue) {
     _this5.log.debug({ server: _this5._server, source: source }, 'queue created');
+    _this5.send(SCHEDULE_ACCEPT + '.' + requestId, queue, socket);
     return getOnlineRunner.call(_this5, action, context, queue, socket, requestId);
   }).catch(function (error) {
     _this5.log.error({ error: error, source: source, server: _this5._server, method: 'createQueue' }, 'failed to create queue');

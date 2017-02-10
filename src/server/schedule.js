@@ -58,7 +58,6 @@ export function checkRunners (context, queue, list, socket, requestId) {
             [OK]: () => {
               let target = `${runner.host}:${runner.port}`
               this.log.trace({ server: this._server, target }, 'successfully signaled run')
-              this.send(`${SCHEDULE_ACCEPT}.${requestId}`, queue, socket)
             }
           },
           () => {
@@ -127,6 +126,7 @@ export function createQueue (action, context, socket, requestId) {
   return this.queries.createQueue(action, requestId, context)
     .then((queue) => {
       this.log.debug({ server: this._server, source }, 'queue created')
+      this.send(`${SCHEDULE_ACCEPT}.${requestId}`, queue, socket)
       return getOnlineRunner.call(this, action, context, queue, socket, requestId)
     })
     .catch((error) => {

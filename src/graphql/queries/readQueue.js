@@ -7,6 +7,7 @@ export default function readQueue (args) {
     readRunnerQueue (${obj2arg(args, { noOuterBraces: true })})
     {
       id,
+      requestId,
       created,
       updated,
       runner,
