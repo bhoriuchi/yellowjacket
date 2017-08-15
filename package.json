@@ -1,63 +1,54 @@
 {
   "name": "yellowjacket",
-  "version": "0.2.0",
-  "description": "Scalable task runner",
-  "license": "MIT",
+  "version": "1.0.0",
+  "description": "Serverless code execution in JavaScript",
   "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bhoriuchi/yellowjacket.git"
   },
-  "scripts": {
-    "build:copybrc": "cp build/.build.babelrc src/backend/.babelrc && cp build/.build.babelrc src/graphql/.babelrc && cp build/.build.babelrc src/server/.babelrc && cp build/.build.babelrc src/server/.babelrc",
-    "build:rmbrc": "rm -f src/backend/.babelrc && rm -f src/graphql/.babelrc && rm -f src/server/.babelrc",
-    "example": "node example/index.js --harmony",
-    "build:backend": "npm run build:copybrc && rollup -c build/rollup.backend.config.js && npm run build:rmbrc",
-    "build": "cp build/.build.babelrc src/.babelrc && rollup -c build/rollup.config.js && rm -f src/.babelrc",
-    "test": "npm run build && mocha test/index.js",
-    "copybe": "cp ../graphql-factory-backend/*.js node_modules/graphql-factory-backend/"
-  },
+  "keywords": [
+    "serverless",
+    "javascript",
+    "function"
+  ],
   "author": "Branden Horiuchi <bhoriuchi@gmail.com>",
-  "dependencies": {
-    "graphql-factory": "^1.0.0",
-    "graphql-factory-types": "^0.1.1",
-    "graphql-factory-backend": "^0.1.0",
-    "hat": "^0.0.3",
-    "jsonwebtoken": "^7.1.9",
-    "lodash": "^4.15.0",
-    "nested-opts": "^0.1.0",
-    "socket.io": "^1.4.0",
-    "socket.io-client": "^1.4.8",
-    "socketio-jwt": "^4.5.0"
-  },
-  "devDependencies": {
-    "bunyan": "^1.8.1",
-    "chalk": "^1.1.3",
-    "node-getopt": "^0.2.3",
-    "chai": "^3.5.0",
-    "babel-core": "^6.21.0",
-    "babel-preset-es2015": "^6.18.0",
-    "babel-preset-stage-2": "^6.18.0",
-    "babel-plugin-transform-runtime": "^6.15.0",
-    "babel-runtime": "^6.20.0",
-    "babel-register": "^6.18.0",
-    "graphql": "^0.8.0",
-    "mocha": "^3.0.0",
-    "rethinkdbdash": "^2.3.6",
-    "rewire": "^2.5.1",
-    "rollup": "^0.37.0",
-    "rollup-plugin-babel": "^2.7.0",
-    "babel-preset-es2015-rollup": "^3.0.0"
-  },
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/bhoriuchi/yellowjacket/issues"
   },
   "homepage": "https://github.com/bhoriuchi/yellowjacket#readme",
-  "directories": {
-    "example": "example"
+  "dependencies": {
+    "body-parser": "^1.17.2",
+    "bunyan": "^1.8.12",
+    "cors": "^2.8.4",
+    "express": "^4.15.4",
+    "hat": "0.0.3",
+    "jsonquery-engine": "^1.0.2",
+    "jsonwebtoken": "^7.4.2",
+    "levelup": "^1.3.9",
+    "lodash": "^4.17.4",
+    "sbx": "^2.1.0",
+    "socket.io": "^2.0.3",
+    "socket.io-client": "^2.0.3",
+    "socketio-jwt": "^4.5.0"
   },
-  "keywords": [
-    "task",
-    "runner"
-  ]
+  "devDependencies": {
+    "babel-core": "^6.25.0",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-es2015-rollup": "^3.0.0",
+    "babel-preset-stage-2": "^6.24.1",
+    "babel-register": "^6.24.1",
+    "babel-runtime": "^6.25.0",
+    "chai": "^4.1.1",
+    "localdown": "^0.2.1",
+    "mocha": "^3.5.0",
+    "rethinkdown": "^0.3.0",
+    "rollup": "^0.47.4",
+    "rollup-plugin-babel": "^3.0.1"
+  }
 }
